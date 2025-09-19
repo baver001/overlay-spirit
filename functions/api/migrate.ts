@@ -10,10 +10,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const schema = await (await fetch(new URL('./schema.sql', import.meta.url))).text();
   await DB.exec(schema);
 
-  if (seed) {
-    const seedSql = await (await fetch(new URL('./seed.sql', import.meta.url))).text();
-    await DB.exec(seedSql);
-  }
+  // Сиды выключены: оставляем параметр для обратной совместимости
 
   return new Response(JSON.stringify({ ok: true, seeded: seed }), {
     headers: { 'content-type': 'application/json' },

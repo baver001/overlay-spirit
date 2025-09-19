@@ -15,14 +15,43 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
+-- Sessions for cookie-based auth
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  user_agent TEXT,
+  ip TEXT,
+  revoked_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+-- Categories for grouping overlay sets
+CREATE TABLE IF NOT EXISTS categories (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_categories_order ON categories(order_index);
+
 CREATE TABLE IF NOT EXISTS overlay_sets (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
-  category TEXT NOT NULL,
+  -- Deprecated textual category; kept for backward compatibility
+  category TEXT,
+  category_id TEXT REFERENCES categories(id),
   description TEXT,
   cover_image_url TEXT,
+  cover_key TEXT, -- R2 object key for cover image
   is_paid INTEGER NOT NULL DEFAULT 0,
   price_cents INTEGER,
+  stripe_product_id TEXT,
+  stripe_price_id TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_by TEXT REFERENCES users(id),
   created_at INTEGER NOT NULL,
@@ -35,7 +64,7 @@ CREATE TABLE IF NOT EXISTS overlays (
   id TEXT PRIMARY KEY,
   set_id TEXT NOT NULL REFERENCES overlay_sets(id) ON DELETE CASCADE,
   kind TEXT NOT NULL,
-  value TEXT NOT NULL,
+  value TEXT NOT NULL, -- for kind='css' keep CSS value; for kind='image' store R2 object key
   aspect_ratio REAL,
   order_index INTEGER NOT NULL DEFAULT 0,
   is_active INTEGER NOT NULL DEFAULT 1,

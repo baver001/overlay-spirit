@@ -20,3 +20,7 @@ database_name = "overlay_spirit"
 # Environment variables for the build
 [env.production.vars]
 NODE_ENV = "production"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "overlay-spirit"
