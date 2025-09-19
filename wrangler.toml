@@ -1,0 +1,14 @@
+name = "overlay-spirit"
+compatibility_date = "2024-09-19"
+pages_build_output_dir = "dist"
+
+# Pages configuration
+[pages_build_config]
+# Build command for Pages
+build_command = "npm run build"
+# Directory containing the built assets
+destination_dir = "dist"
+
+# Environment variables for the build
+[env.production.vars]
+NODE_ENV = "production"

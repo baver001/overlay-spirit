@@ -39,3 +39,25 @@ export const BLEND_MODES = [
   { value: 'color', label: 'Color' },
   { value: 'luminosity', label: 'Luminosity' }
 ] as const;
+
+// Соответствие режимов наложения между UI (CSS mix-blend-mode)
+// и CanvasRenderingContext2D.globalCompositeOperation
+// Почти все совпадают 1:1, кроме normal → source-over
+export const CANVAS_BLEND_MAP: Record<string, GlobalCompositeOperation> = {
+  normal: 'source-over',
+  screen: 'screen',
+  multiply: 'multiply',
+  overlay: 'overlay',
+  'soft-light': 'soft-light',
+  'hard-light': 'hard-light',
+  'color-dodge': 'color-dodge',
+  'color-burn': 'color-burn',
+  difference: 'difference',
+  exclusion: 'exclusion',
+  darken: 'darken',
+  lighten: 'lighten',
+  hue: 'hue',
+  saturation: 'saturation',
+  color: 'color',
+  luminosity: 'luminosity',
+};

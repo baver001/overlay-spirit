@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useDraggable } from '@/hooks/useDraggable';
 import { Overlay } from '@/lib/types';
-import { APP_CONFIG } from '@/lib/constants';
+import { APP_CONFIG, CANVAS_BLEND_MAP } from '@/lib/constants';
 import ImageDropzone from './ImageDropzone';
 import ImageManager from './ImageManager';
 import OverlaySettingsModal from './OverlaySettingsModal';
@@ -18,6 +18,8 @@ interface EditorCanvasProps {
   onDeleteOverlay: (id: string) => void;
   onImageSelect: (file: File) => void;
   onImageRemove: () => void;
+  // Может не быть, если вызывается из старого рендера/страницы
+  overlayAspectRatios?: Record<string, number>;
 }
 
 const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -29,19 +31,37 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onSelectOverlay,
   onDeleteOverlay,
   onImageSelect,
-  onImageRemove
+  onImageRemove,
+  overlayAspectRatios,
 }) => {
   const [settingsOverlayId, setSettingsOverlayId] = useState<string | null>(null);
+  const [localAspectRatios, setLocalAspectRatios] = useState<Record<string, number>>({});
+
+  // Подгружаем естественные пропорции изображений-оверлеев для DOM-рендера,
+  // если они не переданы извне
+  React.useEffect(() => {
+    overlays.forEach((o) => {
+      if (o.type !== 'image') return;
+      const already = (overlayAspectRatios && overlayAspectRatios[o.id] !== undefined) || localAspectRatios[o.id] !== undefined;
+      if (already) return;
+      const im = new Image();
+      im.crossOrigin = 'anonymous';
+      im.onload = () => {
+        setLocalAspectRatios((prev) => ({ ...prev, [o.id]: im.naturalWidth / im.naturalHeight }));
+      };
+      im.src = o.value;
+    });
+  }, [overlays, overlayAspectRatios, localAspectRatios]);
   
   const imageStyle = useMemo(() => {
     if (!imageDimensions) return {};
-    
+
     const containerWidth = window.innerWidth - APP_CONFIG.SIDEBAR_WIDTH;
     const containerHeight = window.innerHeight - APP_CONFIG.HEADER_HEIGHT;
     const aspectRatio = imageDimensions.width / imageDimensions.height;
-    
+
     let width, height;
-    
+
     if (aspectRatio > containerWidth / containerHeight) {
       width = Math.min(containerWidth * APP_CONFIG.CANVAS_PADDING, imageDimensions.width);
       height = width / aspectRatio;
@@ -49,23 +69,14 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       height = Math.min(containerHeight * APP_CONFIG.CANVAS_PADDING, imageDimensions.height);
       width = height * aspectRatio;
     }
-    
+
     return { width, height };
   }, [imageDimensions]);
 
-  // Ограничиваем движения оверлея пределами изображения (по половине ширины/высоты кадра)
+  // Свободное движение оверлеев - маскирование происходит через overflow: hidden родительского контейнера
   const { handleMouseDown, handleMouseMove, handleMouseUp, isDragging } = useDraggable((id, pos) => {
-    if (!imageStyle.width || !imageStyle.height) {
-      onUpdateOverlay(id, pos);
-      return;
-    }
-    const halfW = imageStyle.width / 2;
-    const halfH = imageStyle.height / 2;
-
-    const clampedX = Math.max(-halfW, Math.min(halfW, pos.x));
-    const clampedY = Math.max(-halfH, Math.min(halfH, pos.y));
- 
-    onUpdateOverlay(id, { x: clampedX, y: clampedY });
+    if (!id) return;
+    onUpdateOverlay(id, pos);
   });
 
   const handleSave = useCallback(async () => {
@@ -113,30 +124,49 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       // Сначала рисуем фото
       ctx.drawImage(baseImg, 0, 0, imageDimensions.width, imageDimensions.height);
 
-      // Затем оверлеи по порядку с DOM-повторением логики (inner 200%)
-      const INNER_FACTOR = 2; // должен совпадать с DOM-слоем
-      overlays.forEach((overlay) => {
+      // Затем оверлеи по порядку
+      Array.isArray(overlays) && overlays.forEach((overlay) => {
         ctx.save();
-        ctx.globalAlpha = overlay.opacity;
-        ctx.globalCompositeOperation = overlay.blendMode as GlobalCompositeOperation;
         
+        // Устанавливаем клип/маску по форме основного изображения ДО всех трансформаций оверлея
+        ctx.beginPath();
+        ctx.rect(0, 0, imageDimensions.width, imageDimensions.height);
+        ctx.clip();
+
+        ctx.globalAlpha = overlay.opacity;
+        ctx.globalCompositeOperation = CANVAS_BLEND_MAP[overlay.blendMode] ?? 'source-over';
+
         const centerX = imageDimensions.width / 2 + overlay.x;
         const centerY = imageDimensions.height / 2 + overlay.y;
-        
+
         ctx.translate(centerX, centerY);
         ctx.rotate((overlay.rotation * Math.PI) / 180);
         ctx.scale(overlay.scale * (overlay.flipH ? -1 : 1), overlay.scale * (overlay.flipV ? -1 : 1));
-        
+
         if (overlay.type === 'css') {
+          const largerDimension = Math.max(imageDimensions.width, imageDimensions.height);
           ctx.fillStyle = overlay.value;
-          ctx.fillRect(-(imageDimensions.width * INNER_FACTOR) / 2, -(imageDimensions.height * INNER_FACTOR) / 2, imageDimensions.width * INNER_FACTOR, imageDimensions.height * INNER_FACTOR);
+          ctx.fillRect(-largerDimension / 2, -largerDimension / 2, largerDimension, largerDimension);
         } else {
           const oImg = overlayImageMap.get(overlay.id);
           if (oImg) {
-            ctx.drawImage(oImg, -(imageDimensions.width * INNER_FACTOR) / 2, -(imageDimensions.height * INNER_FACTOR) / 2, imageDimensions.width * INNER_FACTOR, imageDimensions.height * INNER_FACTOR);
+            const aspectRatio = oImg.naturalWidth / oImg.naturalHeight;
+            const imageIsVertical = imageDimensions.height > imageDimensions.width;
+
+            let renderWidth, renderHeight;
+
+            if (imageIsVertical) {
+              // Заполнение по высоте фото, ширина по аспекту
+              renderHeight = imageDimensions.height;
+              renderWidth = imageDimensions.height * aspectRatio;
+            } else {
+              // Заполнение по ширине фото, высота по аспекту
+              renderWidth = imageDimensions.width;
+              renderHeight = imageDimensions.width / aspectRatio;
+            }
+            ctx.drawImage(oImg, -renderWidth / 2, -renderHeight / 2, renderWidth, renderHeight);
           }
         }
-        
         ctx.restore();
       });
 
@@ -214,7 +244,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onClick={(e) => {
-          // Снимаем выделение только если клик произошел вне оверлея
+          // Клик по фону холста — закрываем редактор
           if (e.target === e.currentTarget) {
             onSelectOverlay(null);
           }
@@ -237,38 +267,64 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           >
             {/* Контейнер изображения и оверлеев с правильным контекстом смешивания */}
             <div
-              className="absolute left-1/2 top-1/2 rounded-lg shadow-[0_35px_60px_-15px_rgba(0,0,0,0.6)] border border-gray-200"
+              className="absolute left-1/2 top-1/2 rounded-lg shadow-[0_50px_140px_-40px_rgba(0,0,0,0.6)] border border-gray-200"
               style={{
                 ...imageStyle,
                 transform: 'translate(-50%, -50%)',
-                isolation: 'isolate', // Создаем контекст наложения
+                isolation: 'isolate', // Для корректного mix-blend-mode
                 zIndex: 1,
-                overflow: 'visible', // Позволяем оверлеям выходить за границы
+                overflow: 'hidden', // Маскируем все, что выходит за пределы
               }}
             >
               {/* Базовое изображение */}
               <img
                 src={image}
                 alt="Editor canvas"
-                className="w-full h-full object-contain rounded-lg block relative z-0"
-                draggable={false}
+                className="w-full h-full object-contain rounded-lg block"
               />
-              
-              {/* Контейнер-маска: совпадает с фото, оверлеи двигаются свободно, видимая область ограничена только маской */}
-              <div className="absolute inset-0 overflow-hidden rounded-lg">
-                {overlays.map((overlay) => (
+
+              {/* Оверлеи: позиционируются внутри родительского контейнера, который имеет overflow:hidden */}
+            {Array.isArray(overlays) && overlays.length > 0 && overlays.map((overlay) => {
+              const aspectRatio = overlayAspectRatios?.[overlay.id] ?? localAspectRatios[overlay.id];
+                let sizeStyle = {};
+
+              // Если нет данных о пропорциях, рендерим безопасный квадрат и не падаем
+              if (overlay.type === 'css' || !aspectRatio || !imageStyle.width || !imageStyle.height) {
+                  const largerDimension = Math.max(imageStyle.width, imageStyle.height);
+                  sizeStyle = {
+                    width: `${largerDimension}px`,
+                    height: `${largerDimension}px`,
+                  };
+                } else {
+                  const imageIsVertical = imageStyle.height > imageStyle.width;
+                  if (imageIsVertical) {
+                    sizeStyle = {
+                     height: `${imageStyle.height}px`,
+                     width: `${Math.round(imageStyle.height * aspectRatio)}px`,
+                    };
+                  } else {
+                    sizeStyle = {
+                    width: `${imageStyle.width}px`,
+                    height: `${Math.round(imageStyle.width / aspectRatio)}px`,
+                    };
+                  }
+                }
+
+                return (
                   <div
                     key={overlay.id}
                     className={`absolute pointer-events-auto ${
                       isDragging ? 'cursor-grabbing' : 'cursor-move'
                     }`}
-                    style={{
+                  style={{
                       left: '50%',
                       top: '50%',
-                      width: '100%',
-                      height: '100%',
+                      ...sizeStyle,
                       transform: `translate(-50%, -50%) translate(${overlay.x}px, ${overlay.y}px)`,
                       zIndex: 10,
+                    // Переносим режим наложения на внешний контейнер, чтобы избежать
+                    // проблем смешивания на трансформированном дочернем слое
+                    mixBlendMode: overlay.blendMode,
                     }}
                     onMouseDown={(e) => {
                       e.stopPropagation();
@@ -280,26 +336,25 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       onSelectOverlay(overlay.id);
                     }}
                   >
-                    <div
+                     <div
                       className="absolute left-1/2 top-1/2"
                       style={{
-                        width: '200%',
-                        height: '200%',
+                        width: '100%',
+                        height: '100%',
                         transform: `translate(-50%, -50%) rotate(${overlay.rotation}deg) scale(${overlay.scale}) ${overlay.flipH ? 'scaleX(-1)' : ''} ${overlay.flipV ? 'scaleY(-1)' : ''}`,
                         transformOrigin: 'center',
                         background: overlay.type === 'css' ? overlay.value : undefined,
                         backgroundImage: overlay.type === 'image' ? `url(${overlay.value})` : undefined,
-                        backgroundSize: 'cover',
+                         // Чтобы не искажать пропорции изображения внутри контейнера
+                         backgroundSize: 'contain',
                         backgroundPosition: 'center',
                         backgroundRepeat: 'no-repeat',
-                        mixBlendMode: overlay.blendMode,
                         opacity: overlay.opacity,
-                        borderRadius: '8px',
                       }}
                     />
                   </div>
-                ))}
-              </div>
+                );
+              })}
               
               <ImageManager 
                 image={image}

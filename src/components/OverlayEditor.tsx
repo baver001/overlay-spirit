@@ -19,7 +19,7 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
   onDelete 
 }) => {
   return (
-    <div className="p-4 space-y-4 bg-background shadow-2xl relative z-50">
+    <div className="p-4 space-y-4 bg-background shadow-2xl relative z-50 rounded-lg animate-fade-in-up">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Редактор оверлея</h3>
         <Button
@@ -104,7 +104,21 @@ const OverlayEditor: React.FC<OverlayEditorProps> = ({
             value={overlay.blendMode}
             onValueChange={(value: Overlay['blendMode']) => onUpdate(overlay.id, { blendMode: value })}
           >
-            <SelectTrigger className="w-full h-8 text-xs">
+            <SelectTrigger
+              className="w-full h-8 text-xs"
+              onWheel={(e) => {
+                e.preventDefault();
+                const idx = BLEND_MODES.findIndex(m => m.value === overlay.blendMode);
+                if (idx < 0) return;
+                if (e.deltaY > 0) {
+                  const next = BLEND_MODES[(idx + 1) % BLEND_MODES.length];
+                  onUpdate(overlay.id, { blendMode: next.value });
+                } else if (e.deltaY < 0) {
+                  const prev = BLEND_MODES[(idx - 1 + BLEND_MODES.length) % BLEND_MODES.length];
+                  onUpdate(overlay.id, { blendMode: prev.value });
+                }
+              }}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
