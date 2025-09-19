@@ -50,14 +50,25 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   return json({ user: { id: row.user_id, email: row.email, role: row.role } });
 };
 
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const bytes = new Uint8Array(digest);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function login(ctx: EventContext<Env, any, any>) {
   const body = await ctx.request.json().catch(() => null) as { email?: string, password?: string } | null;
   if (!body?.email || !body?.password) return json({ error: 'email/password required' }, { status: 400 });
 
-  // Простой демо-логин: по email. Для прод — добавить bcrypt проверку
-  const user = await ctx.env.DB.prepare(`SELECT * FROM users WHERE email = ?`).bind(body.email).first();
+  const user = await ctx.env.DB.prepare(`SELECT id, email, role, password_hash FROM users WHERE email = ?`).bind(body.email).first<any>();
   if (!user) return json({ error: 'invalid credentials' }, { status: 401 });
-  // TODO: проверить password_hash (bcrypt)
+
+  // Проверяем пароль как SHA-256 hex
+  const incomingHash = await sha256Hex(body.password);
+  if (user.password_hash && user.password_hash !== incomingHash) {
+    return json({ error: 'invalid credentials' }, { status: 401 });
+  }
 
   const sid = nanoid();
   const now = Date.now();

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, LogIn, LogOut, UserCircle2 } from 'lucide-react';
 
 interface UserInfo {
@@ -70,35 +71,38 @@ const Header: React.FC = React.memo(() => {
 			</div>
 
 			{open && !user && (
-				<div className="fixed inset-0 z-30 flex items-center justify-center">
-					<div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-					<div className="relative bg-background rounded-lg shadow-xl border w-[90vw] max-w-sm p-4 animate-fade-in-up">
-						<h2 className="text-lg font-semibold mb-3">Вход</h2>
-						<div className="space-y-2">
-							<input
-								type="email"
-								placeholder="Email"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								className="w-full px-3 py-2 rounded-md border bg-background"
-							/>
-							<input
-								type="password"
-								placeholder="Пароль"
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								className="w-full px-3 py-2 rounded-md border bg-background"
-							/>
-							{error && <div className="text-red-500 text-sm">{error}</div>}
-							<div className="flex justify-end gap-2 pt-2">
-								<button onClick={() => setOpen(false)} className="px-3 py-1.5 rounded-md text-sm border">Отмена</button>
-								<button onClick={handleLogin} disabled={loading} className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground disabled:opacity-50">
-									{loading ? '...' : 'Войти'}
-								</button>
+				createPortal(
+					<div className="fixed inset-0 z-50 flex items-center justify-center">
+						<div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+						<div className="relative bg-background rounded-lg shadow-2xl border w-[90vw] max-w-sm p-4 animate-fade-in-up">
+							<h2 className="text-lg font-semibold mb-3">Вход</h2>
+							<div className="space-y-2">
+								<input
+									type="email"
+									placeholder="Email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									className="w-full px-3 py-2 rounded-md border bg-background"
+								/>
+								<input
+									type="password"
+									placeholder="Пароль"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									className="w-full px-3 py-2 rounded-md border bg-background"
+								/>
+								{error && <div className="text-red-500 text-sm">{error}</div>}
+								<div className="flex justify-end gap-2 pt-2">
+									<button onClick={() => setOpen(false)} className="px-3 py-1.5 rounded-md text-sm border">Отмена</button>
+									<button onClick={handleLogin} disabled={loading} className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground disabled:opacity-50">
+										{loading ? '...' : 'Войти'}
+									</button>
+								</div>
 							</div>
-						</div>
-					</div>
-				)}
+						</div>,
+					document.body
+				)
+			)}
 		</header>
 	);
 });
