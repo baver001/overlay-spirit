@@ -9,6 +9,14 @@ build_command = "npm run build"
 # Directory containing the built assets
 destination_dir = "dist"
 
+[vars]
+NODE_ENV = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_id = "ce057c27-eccb-498f-bd4a-5cc82d80da9f"
+database_name = "overlay_spirit"
+
 # Environment variables for the build
 [env.production.vars]
 NODE_ENV = "production"
