@@ -99,8 +99,9 @@ const Header: React.FC = React.memo(() => {
 									</button>
 								</div>
 							</div>
-						</div>,
-					document.body
+						</div>
+					</div>,
+				document.body
 				)
 			)}
 		</header>
