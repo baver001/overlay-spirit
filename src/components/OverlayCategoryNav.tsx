@@ -33,7 +33,7 @@ const OverlayCategoryNav: React.FC<OverlayCategoryNavProps> = ({
   onCategoryChange 
 }) => {
   return (
-    <div className="grid grid-cols-3 gap-2 p-3 border-b border-border">
+    <div className="grid grid-cols-2 gap-2 border-b border-border p-3 sm:grid-cols-3">
       {categories.map((category, index) => (
         <Button
           key={category.id}

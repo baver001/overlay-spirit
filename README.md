@@ -1,73 +1,36 @@
-# Welcome to your Lovable project
+# Loverlay
 
-## Project info
+Loverlay — веб-приложение для создания выразительных фото с помощью настраиваемых оверлеев. Проект развивается под конкретные требования заказчика и включает публичный редактор, личный кабинет и административную панель для управления каталогом наборов.
 
-**URL**: https://lovable.dev/projects/2b822a00-8a4b-41c5-9d66-7a7a7bdbac36
+## Текущий статус проекта
+- Публичный редактор с поддержкой пользовательских изображений, гибким управлением слоями и публикацией результатов.
+- Адаптивная верстка: сайдбар превращается в offcanvas на мобильных устройствах, холст масштабируется под доступное пространство.
+- Полноценная админ-панель (категории, наборы, оверлеи, платежи, статистика) поверх mock-API с сохранением данных в LocalStorage.
+- Личный кабинет пользователя с настройкой платежных методов, историей покупок и доступом к опубликованным работам.
+- Функция «Поделиться» с генерацией предпросмотра, доской шарингов и fallback на копирование ссылки при отсутствии Web Share API.
+- Глобальный контекст аутентификации c разграничением ролей и защищенными маршрутами `/account`, `/admin/*`, `/editor` и `/share/:shareId`.
 
-## How can I edit this code?
+## Стек технологий
+- Vite + React + TypeScript
+- Tailwind CSS и shadcn/ui компоненты
+- TanStack Query для работы с данными
+- Cloudflare Pages Functions (D1, R2) для бэкенда
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/2b822a00-8a4b-41c5-9d66-7a7a7bdbac36) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## Локальная разработка
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Команда запускает dev-сервер Vite на `http://localhost:5173`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Для проверки сборки:
+```bash
+npm run build
+```
 
-**Use GitHub Codespaces**
+## Тестирование
+В проекте пока нет автоматических тестов. Перед коммитом рекомендуется запускать `npm run build`, чтобы убедиться в отсутствии ошибок TypeScript и проблем со сборкой.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/2b822a00-8a4b-41c5-9d66-7a7a7bdbac36) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Планы развития
+Актуальный пошаговый план находится в [`docs/implementation-plan.md`](docs/implementation-plan.md). Документ обновляется по завершении каждого этапа и служит дорожной картой для всей команды.

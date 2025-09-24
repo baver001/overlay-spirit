@@ -1,4 +1,4 @@
--- D1 schema for overlay-spirit
+-- D1 schema for loverlay
 
 PRAGMA foreign_keys = ON;
 
