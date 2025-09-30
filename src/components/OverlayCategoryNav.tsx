@@ -27,11 +27,19 @@ const activeCategoryColors = [
   'bg-gradient-to-r from-teal-500 to-blue-500',
 ];
 
-const OverlayCategoryNav: React.FC<OverlayCategoryNavProps> = ({ 
-  categories, 
-  activeCategory, 
-  onCategoryChange 
+const OverlayCategoryNav: React.FC<OverlayCategoryNavProps> = ({
+  categories,
+  activeCategory,
+  onCategoryChange,
 }) => {
+  if (!categories.length) {
+    return (
+      <div className="p-3 text-xs text-muted-foreground">
+        Категории не найдены. Создайте их в админ-панели.
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-3 gap-2 p-3 border-b border-border">
       {categories.map((category, index) => (
@@ -41,8 +49,8 @@ const OverlayCategoryNav: React.FC<OverlayCategoryNavProps> = ({
           size="sm"
           onClick={() => onCategoryChange(category.id)}
           className={cn(
-            "text-xs font-medium transition-all h-7 px-2",
-            activeCategory === category.id 
+            'text-xs font-medium transition-all h-7 px-2',
+            activeCategory === category.id
               ? `${activeCategoryColors[index % activeCategoryColors.length]} text-white hover:opacity-90`
               : categoryColors[index % categoryColors.length]
           )}
