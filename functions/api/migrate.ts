@@ -1,9 +1,21 @@
 export interface Env {
   DB: D1Database;
+  MIGRATE_TOKEN?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { DB } = context.env;
+  const { DB, MIGRATE_TOKEN } = context.env;
+  if (!MIGRATE_TOKEN) {
+    return new Response('Migrate disabled', { status: 403 });
+  }
+
+  const provided = context.request.headers.get('x-migrate-token')
+    ?? new URL(context.request.url).searchParams.get('token');
+
+  if (!provided || provided !== MIGRATE_TOKEN) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   const url = new URL(context.request.url);
   const seed = url.searchParams.get('seed') === '1';
 

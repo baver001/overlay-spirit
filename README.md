@@ -1,73 +1,51 @@
-# Welcome to your Lovable project
+# Loverlay
 
-## Project info
+Loverlay — PWA-редактор оверлеев: загрузите фото, применяйте наборы эффектов, покупайте премиальные коллекции и управляйте ими через админ-панель.
 
-**URL**: https://lovable.dev/projects/2b822a00-8a4b-41c5-9d66-7a7a7bdbac36
+## Стек
+- Vite + React 18 + TypeScript
+- Tailwind CSS + shadcn/ui (Radix)
+- Cloudflare Pages Functions (D1, R2, Stripe)
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/2b822a00-8a4b-41c5-9d66-7a7a7bdbac36) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+## Быстрый старт
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Переменные окружения
+Создайте `.env` / `.env.local`:
+```
+VITE_API_BASE=/
+CLOUDFLARE_ACCOUNT_ID=...
+CLOUDFLARE_PROJECT=loverlay
+STRIPE_SECRET_KEY=...
+STRIPE_PUBLISHABLE_KEY=...
+MIGRATE_TOKEN=...
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Миграция базы D1
+```sh
+wrangler d1 execute loverlay --file ./functions/api/schema.sql
+```
+либо
+```sh
+curl -X POST https://loverlay.com/api/migrate -H "x-migrate-token: $MIGRATE_TOKEN"
+```
 
-**Use GitHub Codespaces**
+## Деплой
+1. `npm run build`
+2. `wrangler pages publish dist`
+3. Настройте DNS домена `loverlay.com` в Cloudflare и привяжите проект.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Структура каталога
+- `src/` — клиентский код
+- `functions/api/` — Cloudflare Functions
+- `docs/` — аудит и план развития проекта
 
-## What technologies are used for this project?
+## Документация
+- `docs/PROJECT_AUDIT.md`
+- `docs/DEVELOPMENT_PLAN.md`
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/2b822a00-8a4b-41c5-9d66-7a7a7bdbac36) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Лицензия
+MIT
