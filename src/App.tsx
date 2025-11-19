@@ -6,9 +6,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import { AdminRoutes } from "./pages/admin";
 import { Overlay } from "./lib/types";
 import { v4 as uuidv4 } from 'uuid';
 import EditorCanvas from "./components/EditorCanvas";
+import { Helmet } from "react-helmet";
 
 // Создаем QueryClient с оптимизированными настройками
 const queryClient = new QueryClient({
@@ -34,10 +36,16 @@ const App: React.FC = () => {
   }, []);
 
   const handleAddOverlay = useCallback((type: 'css' | 'image', value: string) => {
+    // Преобразуем ключ из БД в полный URL для изображений
+    let overlayValue = value;
+    if (type === 'image' && value.startsWith('overlays/')) {
+      overlayValue = `/api/files/${value}`;
+    }
+    
     const newOverlay: Overlay = {
       id: uuidv4(),
       type,
-      value,
+      value: overlayValue,
       x: 0,
       y: 0,
       opacity: 0.8,
@@ -56,7 +64,7 @@ const App: React.FC = () => {
           [newOverlay.id]: img.naturalWidth / img.naturalHeight,
         }));
       };
-      img.src = value;
+      img.src = overlayValue;
     }
 
     setOverlays(prev => [...prev, newOverlay]);
@@ -86,6 +94,12 @@ const App: React.FC = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <Helmet>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+      </Helmet>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -106,6 +120,7 @@ const App: React.FC = () => {
                 overlayAspectRatios={overlayAspectRatios}
               />
             } />
+            <Route path="/admin/*" element={<AdminRoutes />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

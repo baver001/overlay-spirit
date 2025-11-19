@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Test - Loverlay</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    h1 { color: #60a5fa; }
+    h2 { color: #818cf8; margin-top: 30px; }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #2563eb; }
+    pre {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #1e293b;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .error { color: #ef4444; }
+    .success { color: #22c55e; }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .preview-item {
+      aspect-ratio: 3/2;
+      background-size: cover;
+      background-position: center;
+      border: 2px solid #334155;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Loverlay API Test</h1>
+  
+  <div class="test-section">
+    <h2>1. Каталог оверлеев</h2>
+    <button onclick="testCatalog()">Загрузить каталог</button>
+    <button onclick="clearResult('catalog')">Очистить</button>
+    <pre id="catalog-result"></pre>
+    <div id="catalog-preview" class="preview-grid"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Проверка файлов</h2>
+    <p>Введите путь к файлу (например: overlays/xxx.jpg)</p>
+    <input type="text" id="file-path" placeholder="overlays/xxx.jpg" style="width: 300px; padding: 8px; margin-right: 10px;">
+    <button onclick="testFile()">Проверить файл</button>
+    <button onclick="clearResult('file')">Очистить</button>
+    <pre id="file-result"></pre>
+    <div id="file-preview"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Информация о наборах</h2>
+    <button onclick="testSets()">Загрузить наборы</button>
+    <button onclick="clearResult('sets')">Очистить</button>
+    <pre id="sets-result"></pre>
+  </div>
+
+  <script>
+    async function testCatalog() {
+      const result = document.getElementById('catalog-result');
+      const preview = document.getElementById('catalog-preview');
+      result.textContent = 'Загрузка...';
+      preview.innerHTML = '';
+      
+      try {
+        const resp = await fetch('/api/sets?catalog=1', { credentials: 'include' });
+        const data = await resp.json();
+        
+        result.textContent = JSON.stringify(data, null, 2);
+        result.className = resp.ok ? 'success' : 'error';
+        
+        // Show preview images
+        if (data.setsByCategory) {
+          const allSets = Object.values(data.setsByCategory).flat();
+          let overlayCount = 0;
+          
+          allSets.forEach(set => {
+            if (set.previewOverlays && set.previewOverlays.length > 0) {
+              set.previewOverlays.forEach(overlay => {
+                if (overlay.kind === 'image') {
+                  overlayCount++;
+                  const div = document.createElement('div');
+                  div.className = 'preview-item';
+                  const imageUrl = overlay.value.startsWith('overlays/') 
+                    ? `/api/files/${overlay.value}` 
+                    : overlay.value;
+                  div.style.backgroundImage = `url(${imageUrl})`;
+                  div.title = `${set.title} - ${overlay.value}`;
+                  preview.appendChild(div);
+                }
+              });
+            }
+          });
+          
+          if (overlayCount === 0) {
+            preview.innerHTML = '<p style="color: #f59e0b;">⚠️ Оверлеи не найдены. Возможно, они не загружены в R2 или не добавлены в БД.</p>';
+          }
+        }
+      } catch (error) {
+        result.textContent = `Ошибка: ${error.message}`;
+        result.className = 'error';
+      }
+    }
+
+    async function testFile() {
+      const path = document.getElementById('file-path').value.trim();
+      const result = document.getElementById('file-result');
+      const previewDiv = document.getElementById('file-preview');
+      
+      if (!path) {
+        result.textContent = 'Введите путь к файлу';
+        result.className = 'error';
+        return;
+      }
+      
+      result.textContent = 'Проверка...';
+      previewDiv.innerHTML = '';
+      
+      const url = path.startsWith('/') ? path : `/api/files/${path}`;
+      
+      try {
+        const resp = await fetch(url);
+        const contentType = resp.headers.get('content-type');
+        
+        result.textContent = `Статус: ${resp.status} ${resp.statusText}\nContent-Type: ${contentType}\nURL: ${url}`;
+        result.className = resp.ok ? 'success' : 'error';
+        
+        if (resp.ok && contentType && contentType.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = url;
+          img.style.maxWidth = '400px';
+          img.style.border = '2px solid #22c55e';
+          img.style.borderRadius = '8px';
+          img.style.marginTop = '10px';
+          previewDiv.appendChild(img);
+        }
+      } catch (error) {
+        result.textContent = `Ошибка: ${error.message}`;
+        result.className = 'error';
+      }
+    }
+
+    async function testSets() {
+      const result = document.getElementById('sets-result');
+      result.textContent = 'Загрузка...';
+      
+      try {
+        const resp = await fetch('/api/admin?list=sets', { credentials: 'include' });
+        const data = await resp.json();
+        
+        result.textContent = JSON.stringify(data, null, 2);
+        result.className = resp.ok ? 'success' : 'error';
+      } catch (error) {
+        result.textContent = `Ошибка: ${error.message}`;
+        result.className = 'error';
+      }
+    }
+
+    function clearResult(section) {
+      document.getElementById(`${section}-result`).textContent = '';
+      const preview = document.getElementById(`${section}-preview`);
+      if (preview) preview.innerHTML = '';
+    }
+  </script>
+</body>
+</html>
+

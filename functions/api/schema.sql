@@ -44,12 +44,13 @@ CREATE TABLE IF NOT EXISTS overlay_sets (
   title TEXT NOT NULL,
   -- Deprecated textual category; kept for backward compatibility
   category TEXT,
-  category_id TEXT REFERENCES categories(id),
+  category_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
   description TEXT,
   cover_image_url TEXT,
   cover_key TEXT, -- R2 object key for cover image
   is_paid INTEGER NOT NULL DEFAULT 0,
   price_cents INTEGER,
+  discount_price_cents INTEGER, -- Discounted price if applicable
   stripe_product_id TEXT,
   stripe_price_id TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
@@ -88,6 +89,26 @@ CREATE TABLE IF NOT EXISTS purchases (
 
 CREATE INDEX IF NOT EXISTS idx_purchases_user ON purchases(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_purchases_set ON purchases(set_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_created ON purchases(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id TEXT PRIMARY KEY,
+  admin_id TEXT NOT NULL REFERENCES users(id),
+  action TEXT NOT NULL,
+  entity TEXT NOT NULL,
+  entity_id TEXT,
+  meta_json TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS usage_stats (
   id TEXT PRIMARY KEY,

@@ -15,6 +15,7 @@ export interface OverlaySetSummary {
   description?: string | null;
   coverImageUrl?: string | null;
   isPaid: boolean;
+  isPurchased?: boolean;
   priceCents?: number | null;
   updatedAt: number;
   createdAt: number;

@@ -49,7 +49,12 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       im.onload = () => {
         setLocalAspectRatios((prev) => ({ ...prev, [o.id]: im.naturalWidth / im.naturalHeight }));
       };
-      im.src = o.value;
+      // Преобразуем ключ из БД в полный URL, если нужно
+      let imageUrl = o.value;
+      if (imageUrl.startsWith('overlays/') && !imageUrl.startsWith('/api/files/')) {
+        imageUrl = `/api/files/${imageUrl}`;
+      }
+      im.src = imageUrl;
     });
   }, [overlays, overlayAspectRatios, localAspectRatios]);
   
@@ -109,7 +114,12 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       if (imageOverlays.length > 0) {
         const loadedOverlays = await Promise.allSettled(
           imageOverlays.map(async (o) => {
-            const loaded = await loadImage(o.value);
+            // Преобразуем ключ из БД в полный URL, если нужно
+            let imageUrl = o.value;
+            if (imageUrl.startsWith('overlays/') && !imageUrl.startsWith('/api/files/')) {
+              imageUrl = `/api/files/${imageUrl}`;
+            }
+            const loaded = await loadImage(imageUrl);
             return { id: o.id, image: loaded };
           })
         );
@@ -344,7 +354,14 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         transform: `translate(-50%, -50%) rotate(${overlay.rotation}deg) scale(${overlay.scale}) ${overlay.flipH ? 'scaleX(-1)' : ''} ${overlay.flipV ? 'scaleY(-1)' : ''}`,
                         transformOrigin: 'center',
                         background: overlay.type === 'css' ? overlay.value : undefined,
-                        backgroundImage: overlay.type === 'image' ? `url(${overlay.value})` : undefined,
+                        backgroundImage: overlay.type === 'image' ? (() => {
+                          // Преобразуем ключ из БД в полный URL, если нужно
+                          let imageUrl = overlay.value;
+                          if (imageUrl.startsWith('overlays/') && !imageUrl.startsWith('/api/files/')) {
+                            imageUrl = `/api/files/${imageUrl}`;
+                          }
+                          return `url(${imageUrl})`;
+                        })() : undefined,
                          // Чтобы не искажать пропорции изображения внутри контейнера
                          backgroundSize: 'contain',
                         backgroundPosition: 'center',

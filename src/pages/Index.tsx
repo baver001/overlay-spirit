@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import EditorCanvas from '@/components/EditorCanvas';
+import Footer from '@/components/Footer';
 import { Overlay } from '@/lib/types';
 import { OVERLAY_DEFAULTS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
@@ -53,10 +54,16 @@ const Index: React.FC = () => {
   }, [image]);
 
   const handleAddOverlay = useCallback((type: 'css' | 'image', value: string) => {
+    // Преобразуем ключ из БД в полный URL для изображений
+    let overlayValue = value;
+    if (type === 'image' && value.startsWith('overlays/')) {
+      overlayValue = `/api/files/${value}`;
+    }
+    
     const newOverlay: Overlay = {
       id: uuidv4(),
       type,
-      value,
+      value: overlayValue,
       blendMode: OVERLAY_DEFAULTS.BLEND_MODE,
       opacity: OVERLAY_DEFAULTS.OPACITY,
       x: OVERLAY_DEFAULTS.POSITION.x,
@@ -80,25 +87,28 @@ const Index: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <Sidebar 
-        onAddOverlay={handleAddOverlay}
-        selectedOverlay={selectedOverlay}
-        onUpdateOverlay={handleUpdateOverlay}
-        onDeleteOverlay={handleDeleteOverlay}
-      />
-      <EditorCanvas 
-        image={image} 
-        imageDimensions={imageDimensions}
-        overlays={overlays}
-        onUpdateOverlay={handleUpdateOverlay}
-        selectedOverlayId={selectedOverlayId}
-        onSelectOverlay={setSelectedOverlayId}
-        onDeleteOverlay={handleDeleteOverlay}
-        onImageSelect={handleImageSelect}
-        onImageRemove={handleImageRemove}
-      />
+      <div className="flex-1 flex">
+        <Sidebar 
+          onAddOverlay={handleAddOverlay}
+          selectedOverlay={selectedOverlay}
+          onUpdateOverlay={handleUpdateOverlay}
+          onDeleteOverlay={handleDeleteOverlay}
+        />
+        <EditorCanvas 
+          image={image} 
+          imageDimensions={imageDimensions}
+          overlays={overlays}
+          onUpdateOverlay={handleUpdateOverlay}
+          selectedOverlayId={selectedOverlayId}
+          onSelectOverlay={setSelectedOverlayId}
+          onDeleteOverlay={handleDeleteOverlay}
+          onImageSelect={handleImageSelect}
+          onImageRemove={handleImageRemove}
+        />
+      </div>
+      <Footer />
     </div>
   );
 };

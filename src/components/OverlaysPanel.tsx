@@ -32,8 +32,22 @@ const OverlaysPanel: React.FC<OverlaysPanelProps> = ({
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['overlay-catalog'],
     queryFn: fetchCatalog,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds - much more responsive
+    refetchInterval: 60 * 1000, // Refetch every minute
   });
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[OverlaysPanel] Catalog data:', data);
+    console.log('[OverlaysPanel] Categories:', data?.categories);
+    console.log('[OverlaysPanel] Sets by category:', data?.setsByCategory);
+  }, [data]);
+
+  // Force refresh function for debugging
+  const forceRefresh = React.useCallback(() => {
+    console.log('[OverlaysPanel] Force refreshing catalog...');
+    refetch();
+  }, [refetch]);
 
   const categories = data?.categories ?? [];
   const [activeCategory, setActiveCategory] = useState(() => categories[0]?.id ?? '');

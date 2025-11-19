@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loverlay Integration Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        button { margin: 5px; padding: 8px 16px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Loverlay Integration Tests</h1>
+    <p>Test the API endpoints manually in your browser.</p>
+
+    <div class="test-section">
+        <h3>📋 Test 1: Public Catalog API</h3>
+        <button onclick="testCatalog()">Test /api/sets?catalog=1</button>
+        <div id="catalog-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📦 Test 2: Sets API</h3>
+        <button onclick="testSets()">Test /api/sets</button>
+        <div id="sets-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🖼️ Test 3: Files API</h3>
+        <button onclick="testFiles()">Test /api/files/ (404 expected)</button>
+        <div id="files-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://preview.loverlay.pages.dev';
+
+        async function testEndpoint(url, resultElement) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                resultElement.className = response.ok ? 'test-section success' : 'test-section error';
+                resultElement.innerHTML = `
+                    <strong>Status: ${response.status} ${response.ok ? '✅' : '❌'}</strong><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultElement.className = 'test-section error';
+                resultElement.innerHTML = `<strong>Error: ${error.message}</strong>`;
+            }
+        }
+
+        function testCatalog() {
+            testEndpoint(`${API_BASE}/api/sets?catalog=1`, document.getElementById('catalog-result'));
+        }
+
+        function testSets() {
+            testEndpoint(`${API_BASE}/api/sets`, document.getElementById('sets-result'));
+        }
+
+        function testFiles() {
+            testEndpoint(`${API_BASE}/api/files/overlays/nonexistent.jpg`, document.getElementById('files-result'));
+        }
+    </script>
+</body>
+</html>

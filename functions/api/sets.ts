@@ -55,8 +55,38 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   return json({ items: sets });
 };
 
+// Helper to get current user from session
+async function getCurrentUser(ctx: EventContext<Env, any, any>): Promise<{ id: string } | null> {
+  const cookie = ctx.request.headers.get('cookie') || '';
+  const match = cookie.match(/sid=([^;]+)/);
+  if (!match) return null;
+  const sessionId = decodeURIComponent(match[1]);
+  const now = Date.now();
+  const row = await ctx.env.DB
+    .prepare(`SELECT user_id FROM sessions WHERE id = ? AND expires_at > ? AND revoked_at IS NULL`)
+    .bind(sessionId, now)
+    .first<{ user_id: string }>();
+  return row ? { id: row.user_id } : null;
+}
+
 async function catalogResponse(ctx: EventContext<Env, any, any>) {
   const limit = parsePositiveInt(new URL(ctx.request.url).searchParams.get('limit'), 50, MAX_LIMIT);
+
+  console.log('[catalog] Loading catalog with limit:', limit);
+
+  // Get current user to check purchases
+  const currentUser = await getCurrentUser(ctx);
+  let purchasedSetIds: Set<string> = new Set();
+  
+  if (currentUser) {
+    const purchases = await ctx.env.DB
+      .prepare(`SELECT set_id FROM purchases WHERE user_id = ? AND status = 'paid'`)
+      .bind(currentUser.id)
+      .all<{ set_id: string }>();
+    purchasedSetIds = new Set(purchases.results?.map(p => p.set_id) || []);
+  }
+
+  // Get categories with set counts
   const categories = await ctx.env.DB
     .prepare(`SELECT c.id, c.slug, c.name, c.order_index, COUNT(s.id) AS sets_count
               FROM categories c
@@ -65,48 +95,84 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
               ORDER BY c.order_index ASC, c.created_at ASC`)
     .all();
 
+  // Get sets with their preview overlays
   const setsStmt = ctx.env.DB.prepare(`SELECT s.id, s.title, s.description, s.cover_image_url, s.is_paid, s.price_cents, s.updated_at, s.created_at, s.category_id
                                        FROM overlay_sets s
                                        WHERE s.is_active = 1
                                        ORDER BY s.updated_at DESC
                                        LIMIT ?`).bind(limit);
 
-  const overlaysStmt = ctx.env.DB.prepare(`SELECT o.id, o.set_id, o.kind, o.value, o.order_index, o.is_active
-                                           FROM overlays o
-                                           WHERE o.is_active = 1
-                                           ORDER BY o.set_id ASC, o.order_index ASC`);
+  const [{ results: rawSets }] = await Promise.all([setsStmt.all()]);
 
-  const [{ results: rawSets }, { results: rawOverlays }] = await Promise.all([setsStmt.all(), overlaysStmt.all()]);
+  console.log('[catalog] Found sets:', rawSets?.length || 0, rawSets?.map((s: any) => ({ id: s.id, title: s.title, category: s.category_id })));
+
+  // Get ALL overlays for each set (not just preview)
+  const setIds = rawSets.map((set: any) => set.id);
+  let allOverlays: Record<string, any[]> = {};
+
+  if (setIds.length > 0) {
+    console.log('[catalog] Loading overlays for sets:', setIds);
+    const overlaysStmt = ctx.env.DB
+      .prepare(`SELECT set_id, kind, value, aspect_ratio, order_index, is_active
+                FROM overlays
+                WHERE set_id IN (${setIds.map(() => '?').join(',')})
+                AND is_active = 1
+                ORDER BY set_id, order_index ASC`)
+      .bind(...setIds);
+
+    const overlaysResult = await overlaysStmt.all();
+    console.log('[catalog] Found overlays:', overlaysResult.results?.length || 0);
+
+    const overlaysBySet = overlaysResult.results?.reduce((acc: Record<string, any[]>, overlay: any) => {
+      if (!acc[overlay.set_id]) acc[overlay.set_id] = [];
+      acc[overlay.set_id].push({
+        id: `${overlay.set_id}-${overlay.order_index}`,
+        setId: overlay.set_id,
+        kind: overlay.kind,
+        value: overlay.value,
+        orderIndex: overlay.order_index,
+        isActive: overlay.is_active === 1,
+        aspectRatio: overlay.aspect_ratio,
+      });
+      return acc;
+    }, {}) || {};
+
+    allOverlays = overlaysBySet;
+    console.log('[catalog] All overlays by set:', Object.keys(allOverlays).map(id => ({ id, count: allOverlays[id].length })));
+  }
 
   const setsByCategory: Record<string, any[]> = {};
-  const overlaysBySet = rawOverlays.reduce<Record<string, any[]>>((acc, row: any) => {
-    if (!acc[row.set_id]) acc[row.set_id] = [];
-    acc[row.set_id].push({
-      id: row.id,
-      setId: row.set_id,
-      kind: row.kind,
-      value: row.value,
-      orderIndex: row.order_index,
-      isActive: row.is_active === 1,
-    });
-    return acc;
-  }, {});
 
   rawSets.forEach((set: any) => {
     const grouping = set.category_id ?? 'uncategorized';
     if (!setsByCategory[grouping]) {
       setsByCategory[grouping] = [];
     }
+
+    const setOverlays = allOverlays[String(set.id)] || [];
+    const isPurchased = purchasedSetIds.has(set.id);
+    const isPaid = set.is_paid === 1;
+    
+    console.log('[catalog] Set:', {
+      id: set.id,
+      title: set.title,
+      category: set.category_id,
+      overlaysCount: setOverlays.length,
+      isPaid,
+      isPurchased,
+    });
+
     setsByCategory[grouping].push({
       id: set.id,
       title: set.title,
       description: set.description,
       coverImageUrl: set.cover_image_url,
-      isPaid: set.is_paid === 1,
+      isPaid: isPaid,
+      isPurchased: isPurchased,
       priceCents: set.price_cents,
       updatedAt: set.updated_at,
       createdAt: set.created_at,
-      previewOverlays: (overlaysBySet[set.id] ?? []).slice(0, 6),
+      previewOverlays: setOverlays, // Now contains ALL overlays, not just first 3
     });
   });
 
