@@ -31,28 +31,6 @@ const DomainHandler: React.FC = () => {
   const isAppDomain = hostname === 'app.loverlay.com';
   const isMainDomain = hostname === 'loverlay.com';
   
-  // Handling "guest" access via query param ?guest=true to allow "Try without registration"
-  const searchParams = new URLSearchParams(window.location.search);
-  const isGuest = searchParams.get('guest') === 'true';
-  const noRedirect = searchParams.get('noredirect') === 'true';
-  
-  // Защита от бесконечного редиректа - проверяем флаг "redirected"
-  const wasRedirected = searchParams.get('r') === '1';
-
-  useEffect(() => {
-    if (loading) return;
-    
-    // Не редиректим, если уже был редирект (защита от циклов) или есть флаг noredirect
-    if (wasRedirected || noRedirect) return;
-
-    if (isMainDomain) {
-        if (user) {
-            // Redirect to editor if logged in
-            window.location.href = 'https://app.loverlay.com?r=1';
-        }
-    }
-  }, [user, loading, isAppDomain, isMainDomain, isGuest, wasRedirected]);
-
   if (loading) {
      return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white">Loading...</div>;
   }
@@ -72,8 +50,6 @@ const DomainHandler: React.FC = () => {
   
   // Main Domain Logic
   if (isMainDomain) {
-      // Если есть пользователь - но уже был редирект, показываем лендинг
-      if (user && !wasRedirected) return null; // Redirecting
       return (
         <Routes>
            <Route path="/" element={<LandingPage />} />
