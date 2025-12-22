@@ -34,6 +34,7 @@ const DomainHandler: React.FC = () => {
   // Handling "guest" access via query param ?guest=true to allow "Try without registration"
   const searchParams = new URLSearchParams(window.location.search);
   const isGuest = searchParams.get('guest') === 'true';
+  const noRedirect = searchParams.get('noredirect') === 'true';
   
   // Защита от бесконечного редиректа - проверяем флаг "redirected"
   const wasRedirected = searchParams.get('r') === '1';
@@ -41,8 +42,8 @@ const DomainHandler: React.FC = () => {
   useEffect(() => {
     if (loading) return;
     
-    // Не редиректим, если уже был редирект (защита от циклов)
-    if (wasRedirected) return;
+    // Не редиректим, если уже был редирект (защита от циклов) или есть флаг noredirect
+    if (wasRedirected || noRedirect) return;
 
     if (isMainDomain) {
         if (user) {
