@@ -94,7 +94,7 @@ const PricingPage: React.FC = () => {
               </div>
             </div>
 
-            <Button className="w-full bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20" size="lg">
+            <Button className="w-full bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20 rounded-full" size="lg">
               {t('pricing_page.packs_section.cta')}
             </Button>
           </div>
@@ -153,7 +153,7 @@ const PricingPage: React.FC = () => {
               </div>
             </div>
 
-            <Button className="w-full bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30" size="lg">
+            <Button className="w-full bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 rounded-full" size="lg">
               {t('pricing_page.subscription_section.cta')}
             </Button>
             

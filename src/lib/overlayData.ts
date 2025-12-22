@@ -17,6 +17,7 @@ export interface OverlaySetSummary {
   isPaid: boolean;
   isPurchased?: boolean;
   priceCents?: number | null;
+  discountPriceCents?: number | null;
   updatedAt: number;
   createdAt: number;
   previewOverlays: OverlaySummary[];

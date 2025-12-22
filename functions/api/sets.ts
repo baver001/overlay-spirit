@@ -96,7 +96,7 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
     .all();
 
   // Get sets with their preview overlays
-  const setsStmt = ctx.env.DB.prepare(`SELECT s.id, s.title, s.description, s.cover_image_url, s.is_paid, s.price_cents, s.updated_at, s.created_at, s.category_id
+  const setsStmt = ctx.env.DB.prepare(`SELECT s.id, s.title, s.description, s.cover_image_url, s.is_paid, s.price_cents, s.discount_price_cents, s.updated_at, s.created_at, s.category_id
                                        FROM overlay_sets s
                                        WHERE s.is_active = 1
                                        ORDER BY s.updated_at DESC
@@ -184,6 +184,7 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
       isPaid: isPaid,
       isPurchased: isPurchased,
       priceCents: set.price_cents,
+      discountPriceCents: set.discount_price_cents,
       updatedAt: set.updated_at,
       createdAt: set.created_at,
       previewOverlays: setOverlays, // Now contains ALL overlays, not just first 3

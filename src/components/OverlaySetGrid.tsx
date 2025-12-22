@@ -200,7 +200,7 @@ const OverlaySetGrid: React.FC<OverlaySetGridProps> = ({ sets, onAddOverlay }) =
                     )}
                     <LockedItemsNotice isPaid={set.isPaid} isPurchased={set.isPurchased} />
                     {set.isPaid && !set.isPurchased && (
-                      <PurchaseButton setId={set.id} priceCents={set.priceCents} />
+                      <PurchaseButton setId={set.id} priceCents={set.priceCents} discountPriceCents={set.discountPriceCents} />
                     )}
                     {/* Остальные элементы: оверлеи + заглушки до 25 */}
                     <ExpandedOverlaysGrid 
@@ -241,9 +241,10 @@ const LockedItemsNotice: React.FC<LockedItemsNoticeProps> = ({ isPaid, isPurchas
 interface PurchaseButtonProps {
   setId: string;
   priceCents?: number | null;
+  discountPriceCents?: number | null;
 }
 
-const PurchaseButton: React.FC<PurchaseButtonProps> = ({ setId, priceCents }) => {
+const PurchaseButton: React.FC<PurchaseButtonProps> = ({ setId, priceCents, discountPriceCents }) => {
   const [loading, setLoading] = React.useState(false);
   const { t } = useTranslation();
 
@@ -276,18 +277,18 @@ const PurchaseButton: React.FC<PurchaseButtonProps> = ({ setId, priceCents }) =>
     }
   };
 
-  const price = priceCents ? (priceCents / 100).toFixed(2) : null;
-  const oldPrice = "12.00";
+  const oldPrice = priceCents ? (priceCents / 100).toFixed(2) : null;
+  const price = discountPriceCents ? (discountPriceCents / 100).toFixed(2) : oldPrice;
 
   return (
     <Button
       onClick={handlePurchase}
       disabled={loading}
-      className="w-full mb-3 h-[44px] bg-brand-gradient hover:opacity-90 transition-opacity border-0 text-white"
+      className="w-full mb-3 h-[44px] bg-brand-gradient hover:opacity-90 transition-opacity border-0 text-white rounded-full"
     >
       <ShoppingCart className="w-4 h-4 mr-2" />
       <div className="flex flex-col items-center">
-        {price && <span className="text-[10px] line-through opacity-70 leading-none mb-0.5">$ {oldPrice}</span>}
+        {oldPrice && price !== oldPrice && <span className="text-[10px] line-through opacity-70 leading-none mb-0.5">$ {oldPrice}</span>}
         <span className="font-bold leading-none">
           {loading ? t('editor.loading') : price ? `${t('editor.buy')} $${price}` : t('editor.buy')}
         </span>

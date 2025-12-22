@@ -108,7 +108,7 @@ const LandingPage: React.FC = () => {
               {t('common.login')}
             </Button>
             <Button 
-              className="bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20"
+              className="bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20 rounded-full"
               onClick={() => openAuth('register')}
             >
               {t('common.start_free')}
@@ -149,7 +149,7 @@ const LandingPage: React.FC = () => {
               {user ? (
                 <Button 
                   size="lg"
-                  className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-12 py-6 text-lg group"
+                  className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-12 py-6 text-lg group rounded-full"
                   onClick={() => window.location.href = getEditorUrl()}
                 >
                   {t('common.open_editor')}
@@ -159,7 +159,7 @@ const LandingPage: React.FC = () => {
                 <>
                   <Button 
                     size="lg"
-                    className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-8 py-6 text-lg group"
+                    className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-8 py-6 text-lg group rounded-full"
                     onClick={handleStart}
                   >
                     {t('common.try_free')}
@@ -169,7 +169,7 @@ const LandingPage: React.FC = () => {
                     <Button 
                       size="lg" 
                       variant="outline" 
-                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white px-8 py-6 text-lg group backdrop-blur-sm"
+                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white px-8 py-6 text-lg group backdrop-blur-sm rounded-full"
                     >
                       <Play className="mr-2 w-5 h-5" />
                       {t('common.open_editor')}
@@ -382,7 +382,7 @@ const LandingPage: React.FC = () => {
                 ))}
               </ul>
               <a href={getEditorUrl()}>
-                <Button className="w-full bg-white/10 hover:bg-white/20 text-white border-0">
+                <Button className="w-full bg-white/10 hover:bg-white/20 text-white border-0 rounded-full">
                   {t('common.start_free')}
                 </Button>
               </a>
@@ -416,7 +416,7 @@ const LandingPage: React.FC = () => {
                 ))}
               </ul>
               <Button 
-                className="w-full bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20"
+                className="w-full bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20 rounded-full"
                 onClick={() => openAuth('register')}
               >
                 {t('landing.subscribe')}
@@ -442,7 +442,7 @@ const LandingPage: React.FC = () => {
                 {user ? (
                   <Button 
                     size="lg"
-                    className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-12 py-6 text-lg font-semibold"
+                    className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-12 py-6 text-lg font-semibold rounded-full"
                     onClick={() => window.location.href = getEditorUrl()}
                   >
                     {t('common.open_editor')}
@@ -451,7 +451,7 @@ const LandingPage: React.FC = () => {
                   <>
                     <Button 
                       size="lg"
-                      className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-8 py-6 text-lg font-semibold"
+                      className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-8 py-6 text-lg font-semibold rounded-full"
                       onClick={() => openAuth('register')}
                     >
                       {t('landing.create_account')}
@@ -460,7 +460,7 @@ const LandingPage: React.FC = () => {
                       <Button 
                         size="lg" 
                         variant="outline" 
-                        className="border-white/30 bg-transparent hover:bg-white/10 text-white px-8 py-6 text-lg"
+                        className="border-white/30 bg-transparent hover:bg-white/10 text-white px-8 py-6 text-lg rounded-full"
                       >
                         {t('landing.try_without_reg')}
                       </Button>

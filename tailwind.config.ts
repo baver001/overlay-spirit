@@ -87,7 +87,7 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
       },
       backgroundImage: {
-        'brand-gradient': 'radial-gradient(circle at top left, #F9AD87, #F499BD, #9663A1)',
+        'brand-gradient': 'radial-gradient(circle at 30% 30%, #F9AD87 0%, #F499BD 45%, #9663A1 100%)',
       },
     },
   },
