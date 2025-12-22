@@ -17,7 +17,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({
   onDeleteOverlay 
 }) => {
   return (
-    <aside className="w-[340px] fixed top-16 left-0 bottom-0 border-r border-border flex flex-col z-10 bg-background">
+    <aside className="hidden md:flex w-[340px] fixed top-16 left-0 bottom-0 border-r border-border flex-col z-10 bg-background">
       <div className="flex-grow overflow-hidden">
         <OverlaysPanel 
           onAddOverlay={onAddOverlay}

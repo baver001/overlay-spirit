@@ -1,6 +1,7 @@
 import React from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, Link } from "react-router-dom";
 import * as Icons from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminTopbar } from "./AdminTopbar";
 import { AdminGuard } from "../modules/AdminGuard";
@@ -26,6 +27,13 @@ export const AdminLayout: React.FC = () => {
           <AdminTopbar />
           <div className="flex flex-1">
             <aside className="hidden md:flex md:w-64 lg:w-72 xl:w-80 flex-col border-r border-border bg-background/95 backdrop-blur-lg">
+              <Link 
+                to="/" 
+                className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors border-b border-border"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Вернуться в редактор
+              </Link>
               <div className="p-4">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Administration</h2>
               </div>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Trash2, Upload, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useTranslation } from 'react-i18next';
 
 interface ImageManagerProps {
   image: string | null;
@@ -21,6 +21,7 @@ interface ImageManagerProps {
 }
 
 const ImageManager: React.FC<ImageManagerProps> = ({ image, onImageSelect, onImageRemove }) => {
+  const { t } = useTranslation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -66,21 +67,21 @@ const ImageManager: React.FC<ImageManagerProps> = ({ image, onImageSelect, onIma
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить изображение?</AlertDialogTitle>
+            <AlertDialogTitle>{t('editor.image_manager.delete_title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Это действие нельзя отменить. Изображение и все примененные к нему оверлеи будут удалены.
+              {t('editor.image_manager.delete_desc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleReplaceImage}>
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Заменить
+                {t('editor.image_manager.replace')}
               </Button>
               <AlertDialogAction onClick={handleRemoveImage} className="bg-red-500 hover:bg-red-600">
                 <Trash2 className="w-4 h-4 mr-2" />
-                Удалить
+                {t('editor.image_manager.delete')}
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>

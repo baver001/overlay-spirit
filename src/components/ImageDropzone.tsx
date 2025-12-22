@@ -1,27 +1,28 @@
-
 import React, { useState, useRef, useCallback } from 'react';
 import { UploadCloud, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_CONFIG } from '@/lib/constants';
+import { useTranslation } from 'react-i18next';
 
 interface ImageDropzoneProps {
   onImageSelect: (file: File) => void;
 }
 
 const ImageDropzone: React.FC<ImageDropzoneProps> = React.memo(({ onImageSelect }) => {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = useCallback((file: File): string | null => {
     if (!APP_CONFIG.ACCEPTED_IMAGE_TYPES.includes(file.type as any)) {
-      return 'Поддерживаются только изображения (JPG, PNG, GIF, WebP)';
+      return t('editor.image_dropzone.error_type');
     }
     if (file.size > APP_CONFIG.MAX_FILE_SIZE) {
-      return 'Размер файла не должен превышать 10MB';
+      return t('editor.image_dropzone.error_size');
     }
     return null;
-  }, []);
+  }, [t]);
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     setError(null);
@@ -105,7 +106,7 @@ const ImageDropzone: React.FC<ImageDropzoneProps> = React.memo(({ onImageSelect 
         {error ? (
           <>
             <p className="font-semibold text-xl mb-2 text-red-600">
-              Ошибка загрузки
+              {t('editor.image_dropzone.error_upload')}
             </p>
             <p className="text-sm text-red-500 mb-4">
               {error}
@@ -117,19 +118,19 @@ const ImageDropzone: React.FC<ImageDropzoneProps> = React.memo(({ onImageSelect 
               }}
               className="text-xs text-blue-500 hover:text-blue-700 underline"
             >
-              Попробовать снова
+              {t('editor.image_dropzone.try_again')}
             </button>
           </>
         ) : (
           <>
             <p className="font-semibold text-xl mb-2">
-              {isDragging ? 'Отпустите изображение' : 'Загрузите изображение'}
+              {isDragging ? t('editor.image_dropzone.drop_here') : t('editor.image_dropzone.upload_image')}
             </p>
             <p className="text-sm text-gray-500">
-              Нажмите для выбора или перетащите файл сюда
+              {t('editor.image_dropzone.click_to_select')}
             </p>
             <p className="text-xs text-gray-400 mt-2">
-              PNG, JPG, GIF, WebP до 10MB
+              {t('editor.image_dropzone.formats')}
             </p>
           </>
         )}

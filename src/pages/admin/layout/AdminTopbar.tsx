@@ -9,11 +9,20 @@ export const AdminTopbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-        <Link to="/" className="flex w-48 items-center gap-2 text-sm font-semibold">
-          <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
-        </Link>
-        <div className="flex flex-1 items-center justify-end gap-6">
+      <div className="flex h-16 w-full items-center">
+        {/* Логотип выровнен по левому краю контента (с учётом сайдбара) */}
+        <div className="hidden md:flex md:w-64 lg:w-72 xl:w-80 items-center justify-center px-6 border-r border-border h-full">
+          <Link to="/" className="flex items-center">
+            <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
+          </Link>
+        </div>
+        {/* Мобильный логотип */}
+        <div className="flex md:hidden items-center px-4">
+          <Link to="/" className="flex items-center">
+            <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
+          </Link>
+        </div>
+        <div className="flex flex-1 items-center justify-end gap-6 px-6">
           <span className="text-xs uppercase tracking-wide text-muted-foreground">Admin dashboard</span>
           {user && (
             <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>

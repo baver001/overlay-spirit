@@ -24,7 +24,7 @@ function parsePositiveInt(value: string | null, fallback: number, max: number) {
   return Math.min(Math.floor(num), max);
 }
 
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 500;
 
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   const url = new URL(ctx.request.url);
@@ -70,7 +70,7 @@ async function getCurrentUser(ctx: EventContext<Env, any, any>): Promise<{ id: s
 }
 
 async function catalogResponse(ctx: EventContext<Env, any, any>) {
-  const limit = parsePositiveInt(new URL(ctx.request.url).searchParams.get('limit'), 50, MAX_LIMIT);
+  const limit = parsePositiveInt(new URL(ctx.request.url).searchParams.get('limit'), 200, MAX_LIMIT);
 
   console.log('[catalog] Loading catalog with limit:', limit);
 
@@ -107,23 +107,38 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
   console.log('[catalog] Found sets:', rawSets?.length || 0, rawSets?.map((s: any) => ({ id: s.id, title: s.title, category: s.category_id })));
 
   // Get ALL overlays for each set (not just preview)
+  // Split into batches to avoid SQLite variable limit
   const setIds = rawSets.map((set: any) => set.id);
   let allOverlays: Record<string, any[]> = {};
 
   if (setIds.length > 0) {
-    console.log('[catalog] Loading overlays for sets:', setIds);
-    const overlaysStmt = ctx.env.DB
-      .prepare(`SELECT set_id, kind, value, aspect_ratio, order_index, is_active
-                FROM overlays
-                WHERE set_id IN (${setIds.map(() => '?').join(',')})
-                AND is_active = 1
-                ORDER BY set_id, order_index ASC`)
-      .bind(...setIds);
+    const BATCH_SIZE = 50; // D1 has a limit on SQL variables
+    const batches: string[][] = [];
+    
+    for (let i = 0; i < setIds.length; i += BATCH_SIZE) {
+      batches.push(setIds.slice(i, i + BATCH_SIZE));
+    }
 
-    const overlaysResult = await overlaysStmt.all();
-    console.log('[catalog] Found overlays:', overlaysResult.results?.length || 0);
+    console.log('[catalog] Loading overlays in', batches.length, 'batches');
 
-    const overlaysBySet = overlaysResult.results?.reduce((acc: Record<string, any[]>, overlay: any) => {
+    const batchResults = await Promise.all(
+      batches.map(async (batchIds) => {
+        const stmt = ctx.env.DB
+          .prepare(`SELECT set_id, kind, value, aspect_ratio, order_index, is_active
+                    FROM overlays
+                    WHERE set_id IN (${batchIds.map(() => '?').join(',')})
+                    AND is_active = 1
+                    ORDER BY set_id, order_index ASC`)
+          .bind(...batchIds);
+        return stmt.all();
+      })
+    );
+
+    // Merge all batch results
+    const allResults = batchResults.flatMap(r => r.results || []);
+    console.log('[catalog] Found overlays:', allResults.length);
+
+    const overlaysBySet = allResults.reduce((acc: Record<string, any[]>, overlay: any) => {
       if (!acc[overlay.set_id]) acc[overlay.set_id] = [];
       acc[overlay.set_id].push({
         id: `${overlay.set_id}-${overlay.order_index}`,
@@ -135,10 +150,9 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
         aspectRatio: overlay.aspect_ratio,
       });
       return acc;
-    }, {}) || {};
+    }, {});
 
     allOverlays = overlaysBySet;
-    console.log('[catalog] All overlays by set:', Object.keys(allOverlays).map(id => ({ id, count: allOverlays[id].length })));
   }
 
   const setsByCategory: Record<string, any[]> = {};

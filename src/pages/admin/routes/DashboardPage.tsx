@@ -6,6 +6,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { fetchWithAuth } from "@/lib/api";
+
 type Range = "7d" | "30d" | "90d" | "365d";
 
 const rangeOptions: Array<{ value: Range; label: string }> = [
@@ -39,13 +41,13 @@ interface DashboardResponse {
 }
 
 async function fetchStats(range: Range): Promise<StatsResponse> {
-  const res = await fetch(`/api/admin?list=stats&range=${range}`, { credentials: "include" });
+  const res = await fetchWithAuth(`/api/admin?list=stats&range=${range}`, { credentials: "include" });
   if (!res.ok) throw new Error("Не удалось загрузить статистику");
   return res.json();
 }
 
 async function fetchDashboard(range: Range): Promise<DashboardResponse> {
-  const res = await fetch(`/api/admin?list=dashboard&range=${range}`, { credentials: "include" });
+  const res = await fetchWithAuth(`/api/admin?list=dashboard&range=${range}`, { credentials: "include" });
   if (!res.ok) throw new Error("Не удалось загрузить дашборд");
   return res.json();
 }

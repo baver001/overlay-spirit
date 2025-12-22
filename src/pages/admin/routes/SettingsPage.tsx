@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useForm } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
+import { fetchWithAuth } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 
 const STRIPE_KEYS: SettingKey[] = [
@@ -45,13 +46,13 @@ interface FormValues {
 }
 
 async function fetchSettings(): Promise<SettingsResponse> {
-  const res = await fetch("/api/admin?list=settings", { credentials: "include" });
+  const res = await fetchWithAuth("/api/admin?list=settings", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch settings");
   return res.json();
 }
 
 async function upsertSetting(key: SettingKey, value: string | number) {
-  const res = await fetch("/api/admin?action=settings.upsert", {
+  const res = await fetchWithAuth("/api/admin?action=settings.upsert", {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { fetchWithAuth } from "@/lib/api";
 import { SortableItem } from "./components/SortableItem";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +37,7 @@ export const CategoriesPage: React.FC = () => {
   const categoriesQuery = useQuery<{ items: Category[] }>({
     queryKey: ["admin", "categories"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin?list=categories`, { credentials: "include" });
+      const res = await fetchWithAuth(`/api/admin?list=categories`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
@@ -51,7 +52,7 @@ export const CategoriesPage: React.FC = () => {
   const upsertMutation = useMutation({
     mutationFn: async (values: CategoryFormValues) => {
       const action = values.id ? "category.update" : "category.create";
-      const resp = await fetch(`/api/admin?action=${action}`, {
+      const resp = await fetchWithAuth(`/api/admin?action=${action}`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -75,7 +76,7 @@ export const CategoriesPage: React.FC = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (category: Category) => {
-      const resp = await fetch(`/api/admin?action=category.delete`, {
+      const resp = await fetchWithAuth(`/api/admin?action=category.delete`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -98,7 +99,7 @@ export const CategoriesPage: React.FC = () => {
 
   const reorderMutation = useMutation({
     mutationFn: async (payload: Array<{ id: string; order_index: number }>) => {
-      const resp = await fetch(`/api/admin?action=category.reorder`, {
+      const resp = await fetchWithAuth(`/api/admin?action=category.reorder`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },

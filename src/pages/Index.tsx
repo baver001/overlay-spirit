@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import EditorCanvas from '@/components/EditorCanvas';
+import MobileOverlayPanel from '@/components/MobileOverlayPanel';
 import Footer from '@/components/Footer';
 import { Overlay } from '@/lib/types';
 import { OVERLAY_DEFAULTS } from '@/lib/constants';
@@ -90,12 +91,14 @@ const Index: React.FC = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <div className="flex-1 flex">
+        {/* Desktop Sidebar */}
         <Sidebar 
           onAddOverlay={handleAddOverlay}
           selectedOverlay={selectedOverlay}
           onUpdateOverlay={handleUpdateOverlay}
           onDeleteOverlay={handleDeleteOverlay}
         />
+        
         <EditorCanvas 
           image={image} 
           imageDimensions={imageDimensions}
@@ -106,6 +109,14 @@ const Index: React.FC = () => {
           onDeleteOverlay={handleDeleteOverlay}
           onImageSelect={handleImageSelect}
           onImageRemove={handleImageRemove}
+        />
+        
+        {/* Mobile Bottom Panel */}
+        <MobileOverlayPanel
+          onAddOverlay={handleAddOverlay}
+          selectedOverlay={selectedOverlay}
+          onUpdateOverlay={handleUpdateOverlay}
+          onDeleteOverlay={handleDeleteOverlay}
         />
       </div>
       <Footer />

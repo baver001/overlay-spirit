@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { fetchWithAuth } from "@/lib/api";
 import { currencyFormat } from "../utils/format";
 
 interface PurchaseRow {
@@ -22,7 +23,7 @@ export const PurchasesPage: React.FC = () => {
   const purchasesQuery = useQuery<{ items: PurchaseRow[]; meta: { total: number } }>({
     queryKey: ["admin", "purchases"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin?list=purchases&limit=200`, { credentials: "include" });
+      const res = await fetchWithAuth(`/api/admin?list=purchases&limit=200`, { credentials: "include" });
       if (!res.ok) throw new Error("Не удалось загрузить покупки");
       return res.json();
     },

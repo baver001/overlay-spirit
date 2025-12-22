@@ -23,7 +23,20 @@
     --border: 220 14% 18%;
     --input: 220 14% 18%;
     --ring: 206 52% 60%;
-    --radius: 0.8rem;
+    --radius: 0.75rem;
+    /* Оптические радиусы — гармоничная прогрессия */
+    --radius-xs: 0.375rem;
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+    /* Оптические отступы — кратные 4px для ритма */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
   }
 
   .light {
@@ -46,6 +59,16 @@
     --border: 25 18% 88%;
     --input: 25 18% 88%;
     --ring: 206 52% 55%;
+  }
+}
+
+/* Утилитарные классы для оптических отступов */
+@layer utilities {
+  .p-optical {
+    padding: var(--radius-md);
+  }
+  .gap-optical {
+    gap: var(--space-2);
   }
 }
 

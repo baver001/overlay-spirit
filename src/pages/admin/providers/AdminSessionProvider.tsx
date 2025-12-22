@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 
 interface AdminUser {
   id: string;
@@ -16,16 +17,6 @@ interface AdminSessionContextValue {
 
 const AdminSessionContext = createContext<AdminSessionContextValue | null>(null);
 
-async function fetchMe(): Promise<AdminUser | null> {
-  const res = await fetch("/api/auth", { credentials: "include" });
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!data.user || data.user.role !== "admin") {
-    return null;
-  }
-  return { id: data.user.id, email: data.user.email, role: "admin" };
-}
-
 export const AdminSessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,11 +26,33 @@ export const AdminSessionProvider: React.FC<{ children: ReactNode }> = ({ childr
     setLoading(true);
     setError(null);
     try {
-      const me = await fetchMe();
-      setUser(me);
-      if (!me) {
-        setError("Недостаточно прав для доступа к админке");
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        setUser(null);
+        return;
       }
+
+      // Check role from metadata
+      const role = session.user.user_metadata?.role;
+      
+      if (role !== 'admin') {
+         // Allow explicit superuser by email
+         if (session.user.email === 'pavel@pokataev.com') {
+             // Continue as admin
+         } else {
+             setError("Недостаточно прав для доступа к админке");
+             setUser(null);
+             return;
+         }
+      }
+
+      setUser({ 
+        id: session.user.id, 
+        email: session.user.email || '', 
+        role: "admin" 
+      });
+
     } catch (e: any) {
       setError(e.message || "Ошибка авторизации");
       setUser(null);
@@ -50,10 +63,18 @@ export const AdminSessionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   useEffect(() => {
     void refresh();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        refresh();
+    });
+
+    return () => {
+        subscription.unsubscribe();
+    }
   }, [refresh]);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth?action=logout", { method: "POST", credentials: "include" });
+    await supabase.auth.signOut();
     setUser(null);
   }, []);
 
@@ -69,4 +90,3 @@ export function useAdminSession(): AdminSessionContextValue {
   if (!ctx) throw new Error("useAdminSession must be used within AdminSessionProvider");
   return ctx;
 }
-

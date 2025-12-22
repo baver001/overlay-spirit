@@ -61,3 +61,28 @@ export const CANVAS_BLEND_MAP: Record<string, GlobalCompositeOperation> = {
   color: 'color',
   luminosity: 'luminosity',
 };
+
+// Градиенты для категорий каталога
+export const CATEGORY_GRADIENTS: Record<string, { start: string; end: string }> = {
+  'bokeh': { start: '#FFF0E0', end: '#FFE4CC' },
+  'film-leaks': { start: '#FFCBA4', end: '#FFB68A' },
+  'golden-light': { start: '#FFE066', end: '#FFD633' },
+  'prism': { start: '#E8D4F8', end: '#D4B8F0' },
+  'light-rays': { start: '#7EE8FA', end: '#5ED8EC' },
+  'holographic': { start: '#E0D4F7', end: '#CFC0F2' },
+  'neon': { start: '#FF5C93', end: '#FF3377' },
+  'smoke': { start: '#9EADB6', end: '#8599A4' },
+  'weather': { start: '#A8D4F0', end: '#8EC5E8' },
+  'shadows': { start: '#9C8578', end: '#8A7265' },
+  'paper': { start: '#F5EDE6', end: '#E8DDD3' },
+  'plastic': { start: '#C5F0F5', end: '#A8E6EF' },
+  'grunge': { start: '#B8A398', end: '#A69183' },
+  'space': { start: '#5C6BC0', end: '#4A5AB8' },
+  'nature': { start: '#26A69A', end: '#1D9688' },
+  'glass': { start: '#C8E6F5', end: '#B0DAEE' },
+  'glitch': { start: '#F088F8', end: '#E55CEF' },
+  'frames': { start: '#D4DAE0', end: '#C4CCD4' },
+  'ethereal': { start: '#EDE7F6', end: '#D9CEF0' },
+  'hearts': { start: '#FFCDD9', end: '#FFB3C4' },
+  'events': { start: '#FFDE80', end: '#FFD24D' },
+};

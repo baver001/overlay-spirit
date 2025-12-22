@@ -1,16 +1,19 @@
-
-import React, { useState, useCallback } from "react";
+import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
+import TermsPage from "./pages/TermsPage";
+import PricingPage from "./pages/PricingPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import RefundsPage from "./pages/RefundsPage";
 import Index from "./pages/Index";
 import { AdminRoutes } from "./pages/admin";
-import { Overlay } from "./lib/types";
-import { v4 as uuidv4 } from 'uuid';
-import EditorCanvas from "./components/EditorCanvas";
+import { AccountRoutes } from "./pages/account";
 import { Helmet } from "react-helmet";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 // Создаем QueryClient с оптимизированными настройками
 const queryClient = new QueryClient({
@@ -22,76 +25,89 @@ const queryClient = new QueryClient({
   },
 });
 
-const App: React.FC = () => {
-  const [image, setImage] = useState<string | null>(null);
-  const [imageDimensions, setImageDimensions] = useState<{ width: number, height: number} | null>(null);
-  const [overlays, setOverlays] = useState<Overlay[]>([]);
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [overlayAspectRatios, setOverlayAspectRatios] = useState<Record<string, number>>({});
+const DomainHandler: React.FC = () => {
+  const { user, loading } = useAuth();
+  const hostname = window.location.hostname;
+  const isAppDomain = hostname === 'app.loverlay.com';
+  const isMainDomain = hostname === 'loverlay.com';
+  
+  // Handling "guest" access via query param ?guest=true to allow "Try without registration"
+  const searchParams = new URLSearchParams(window.location.search);
+  const isGuest = searchParams.get('guest') === 'true';
+  
+  // Защита от бесконечного редиректа - проверяем флаг "redirected"
+  const wasRedirected = searchParams.get('r') === '1';
 
-
-  const handleImageSelect = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-  }, []);
-
-  const handleAddOverlay = useCallback((type: 'css' | 'image', value: string) => {
-    // Преобразуем ключ из БД в полный URL для изображений
-    let overlayValue = value;
-    if (type === 'image' && value.startsWith('overlays/')) {
-      overlayValue = `/api/files/${value}`;
-    }
+  useEffect(() => {
+    if (loading) return;
     
-    const newOverlay: Overlay = {
-      id: uuidv4(),
-      type,
-      value: overlayValue,
-      x: 0,
-      y: 0,
-      opacity: 0.8,
-      scale: 1,
-      rotation: 0,
-      blendMode: 'screen',
-      flipH: false,
-      flipV: false,
-    };
+    // Не редиректим, если уже был редирект (защита от циклов)
+    if (wasRedirected) return;
 
-    if (type === 'image') {
-      const img = new Image();
-      img.onload = () => {
-        setOverlayAspectRatios(prev => ({
-          ...prev,
-          [newOverlay.id]: img.naturalWidth / img.naturalHeight,
-        }));
-      };
-      img.src = overlayValue;
+    if (isAppDomain) {
+        if (!user && !isGuest) {
+            // Redirect to landing if not logged in and not guest
+            window.location.href = 'https://loverlay.com?r=1';
+        }
+    } else if (isMainDomain) {
+        if (user) {
+            // Redirect to editor if logged in
+            window.location.href = 'https://app.loverlay.com?r=1';
+        }
     }
+  }, [user, loading, isAppDomain, isMainDomain, isGuest, wasRedirected]);
 
-    setOverlays(prev => [...prev, newOverlay]);
-    setSelectedOverlayId(newOverlay.id);
-  }, []);
+  if (loading) {
+     return <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white">Loading...</div>;
+  }
 
-  const handleUpdateOverlay = useCallback((id: string, newProps: Partial<Overlay>) => {
-    setOverlays(prev =>
-      prev.map(overlay =>
-        overlay.id === id ? { ...overlay, ...newProps } : overlay
-      )
-    );
-  }, []);
+  // App Domain Logic
+  if (isAppDomain) {
+      // Если нет пользователя и не гость - но уже был редирект, показываем редактор в guest режиме
+      if (!user && !isGuest && !wasRedirected) return null; // Redirecting
+      return (
+        <Routes>
+           <Route path="/" element={<Index />} />
+           <Route path="/editor" element={<Index />} />
+           <Route path="/account/*" element={<AccountRoutes />} />
+           <Route path="/admin/*" element={<AdminRoutes />} />
+           <Route path="*" element={<Index />} /> 
+        </Routes>
+      );
+  }
+  
+  // Main Domain Logic
+  if (isMainDomain) {
+      // Если есть пользователь - но уже был редирект, показываем лендинг
+      if (user && !wasRedirected) return null; // Redirecting
+      return (
+        <Routes>
+           <Route path="/" element={<LandingPage />} />
+           <Route path="/terms" element={<TermsPage />} />
+           <Route path="/privacy" element={<PrivacyPage />} />
+           <Route path="/refunds" element={<RefundsPage />} />
+           <Route path="/pricing" element={<PricingPage />} />
+           <Route path="*" element={<LandingPage />} /> 
+        </Routes>
+      );
+  }
 
-  const handleDeleteOverlay = useCallback((id: string) => {
-    setOverlays(prev => prev.filter(overlay => overlay.id !== id));
-    setSelectedOverlayId(null);
-  }, []);
+  // Dev / Fallback Logic
+  return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/refunds" element={<RefundsPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/editor" element={<Index />} />
+        <Route path="/account/*" element={<AccountRoutes />} />
+        <Route path="/admin/*" element={<AdminRoutes />} />
+      </Routes>
+  );
+}
 
-  const handleImageRemove = useCallback(() => {
-    setImage(null);
-    setImageDimensions(null);
-    setOverlays([]);
-    setSelectedOverlayId(null);
-    setOverlayAspectRatios({});
-  }, []);
-
+const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <Helmet>
@@ -103,26 +119,11 @@ const App: React.FC = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/editor" element={
-              <EditorCanvas
-                image={image}
-                imageDimensions={imageDimensions}
-                overlays={overlays}
-                onUpdateOverlay={handleUpdateOverlay}
-                selectedOverlayId={selectedOverlayId}
-                onSelectOverlay={setSelectedOverlayId}
-                onDeleteOverlay={handleDeleteOverlay}
-                onImageSelect={handleImageSelect}
-                onImageRemove={handleImageRemove}
-                overlayAspectRatios={overlayAspectRatios}
-              />
-            } />
-            <Route path="/admin/*" element={<AdminRoutes />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+            <BrowserRouter>
+                <DomainHandler />
+            </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

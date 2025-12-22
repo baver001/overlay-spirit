@@ -52,6 +52,23 @@ export const useDraggable = (onDrag: (id: string, pos: { x: number; y: number })
     };
   }, []);
 
+  // Touch-события для мобильных
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>, id: string, currentX: number, currentY: number) => {
+    e.stopPropagation();
+    
+    const touch = e.touches[0];
+    if (!touch) return;
+    
+    setActiveId(id);
+    
+    dragDataRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initialX: currentX,
+      initialY: currentY
+    };
+  }, []);
+
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!activeId) return;
     
@@ -94,7 +111,29 @@ export const useDraggable = (onDrag: (id: string, pos: { x: number; y: number })
       throttledOnDrag(activeId, { x: newX, y: newY });
     };
 
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      
+      // Предотвращаем скролл страницы во время drag
+      e.preventDefault();
+      
+      const { startX, startY, initialX, initialY } = dragDataRef.current;
+      
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      
+      const newX = initialX + deltaX;
+      const newY = initialY + deltaY;
+      
+      throttledOnDrag(activeId, { x: newX, y: newY });
+    };
+
     const handleGlobalMouseUp = () => {
+      setActiveId(null);
+    };
+
+    const handleGlobalTouchEnd = () => {
       setActiveId(null);
     };
 
@@ -106,11 +145,17 @@ export const useDraggable = (onDrag: (id: string, pos: { x: number; y: number })
 
     document.addEventListener('mousemove', handleGlobalMouseMove, { passive: false });
     document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+    document.addEventListener('touchend', handleGlobalTouchEnd);
+    document.addEventListener('touchcancel', handleGlobalTouchEnd);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+      document.removeEventListener('touchcancel', handleGlobalTouchEnd);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [activeId, throttledOnDrag]);
@@ -119,8 +164,13 @@ export const useDraggable = (onDrag: (id: string, pos: { x: number; y: number })
     handleMouseDown(e, id, currentX, currentY);
   }, [handleMouseDown]);
 
+  const startTouchDrag = useCallback((e: React.TouchEvent<HTMLDivElement>, id: string, currentX: number, currentY: number) => {
+    handleTouchStart(e, id, currentX, currentY);
+  }, [handleTouchStart]);
+
   return { 
     handleMouseDown: startDrag, 
+    handleTouchStart: startTouchDrag,
     handleMouseMove, 
     handleMouseUp,
     isDragging: !!activeId 

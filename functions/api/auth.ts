@@ -40,6 +40,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const url = new URL(ctx.request.url);
   const action = url.searchParams.get('action');
   if (action === 'login') return login(ctx);
+  if (action === 'register') return register(ctx);
   if (action === 'logout') return logout(ctx);
   if (action === 'oauth-google') return oauthGoogle(ctx);
   if (action === 'oauth-apple') return oauthApple(ctx);
@@ -91,6 +92,75 @@ async function login(ctx: EventContext<Env, any, any>) {
       'set-cookie': setCookie('sid', sid, ttl),
     },
   });
+}
+
+async function register(ctx: EventContext<Env, any, any>) {
+  const body = await ctx.request.json().catch(() => null) as { email?: string, password?: string } | null;
+  
+  if (!body?.email || !body?.password) {
+    return json({ error: 'Email и пароль обязательны' }, { status: 400 });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(body.email)) {
+    return json({ error: 'Некорректный email' }, { status: 400 });
+  }
+
+  // Validate password length
+  if (body.password.length < 6) {
+    return json({ error: 'Пароль должен быть не менее 6 символов' }, { status: 400 });
+  }
+
+  // Check if user already exists
+  const existingUser = await ctx.env.DB
+    .prepare(`SELECT id FROM users WHERE email = ?`)
+    .bind(body.email.toLowerCase())
+    .first<any>();
+
+  if (existingUser) {
+    return json({ error: 'Пользователь с таким email уже существует' }, { status: 409 });
+  }
+
+  // Hash password
+  const passwordHash = await sha256Hex(body.password);
+
+  // Create user
+  const userId = crypto.randomUUID();
+  const now = Date.now();
+
+  try {
+    await ctx.env.DB
+      .prepare(`INSERT INTO users (id, email, password_hash, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(userId, body.email.toLowerCase(), passwordHash, 'customer', now, now)
+      .run();
+
+    // Create session
+    const sid = nanoid();
+    const ttl = 60 * 60 * 24 * 7; // 7 days
+    await ctx.env.DB
+      .prepare(`INSERT INTO sessions (id, user_id, created_at, expires_at, user_agent, ip) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(sid, userId, now, now + ttl * 1000, ctx.request.headers.get('user-agent') || null, ctx.request.headers.get('CF-Connecting-IP') || null)
+      .run();
+
+    console.log('[register] User created:', { userId, email: body.email });
+
+    return new Response(JSON.stringify({ ok: true, userId }), {
+      headers: {
+        'content-type': 'application/json',
+        'set-cookie': setCookie('sid', sid, ttl),
+      },
+    });
+  } catch (error: any) {
+    console.error('[register] Error:', error);
+    
+    // Handle unique constraint violation
+    if (error?.message?.includes('UNIQUE constraint failed')) {
+      return json({ error: 'Пользователь с таким email уже существует' }, { status: 409 });
+    }
+    
+    return json({ error: 'Ошибка при регистрации' }, { status: 500 });
+  }
 }
 
 async function logout(ctx: EventContext<Env, any, any>) {

@@ -1,9 +1,13 @@
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
+// @ts-ignore - @cf-wasm/photon is designed for Cloudflare Workers runtime
+import { PhotonImage, SamplingFilter, resize } from '@cf-wasm/photon'
+import { verifySupabaseToken } from './verify'
 
 export interface Env {
   DB: D1Database;
   R2?: R2Bucket;
+  SUPABASE_JWT_SECRET?: string;
 }
 
 const JSON_HEADERS = { 'content-type': 'application/json' } as const;
@@ -196,9 +200,69 @@ function parseNonNegativeInt(value: string | null, fallback: number) {
 }
 
 async function requireAdmin(ctx: EventContext<Env, any, any>) {
+  // Check Authorization header first
+  const authHeader = ctx.request.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    const secret = ctx.env.SUPABASE_JWT_SECRET;
+    if (!secret) {
+        console.error('SUPABASE_JWT_SECRET is not set');
+        throw json({ error: 'Server configuration error: SUPABASE_JWT_SECRET is missing' }, { status: 500 });
+    }
+    
+    try {
+        const payload = await verifySupabaseToken(token, secret);
+        const email = payload.email as string;
+        const role = (payload.app_metadata?.role as string) || (payload.user_metadata?.role as string);
+
+        // Check if user exists in D1 and sync if needed
+        const supabaseUserId = payload.sub as string;
+        
+        // 1. Try to find by primary ID (if new user) OR provider_id (if migrated)
+        let d1User = await ctx.env.DB.prepare('SELECT id, role FROM users WHERE id = ? OR provider_id = ?')
+            .bind(supabaseUserId, supabaseUserId)
+            .first<{id: string, role: string}>();
+        
+        if (!d1User) {
+            // Check by email for migration from old system
+            const existingByEmail = await ctx.env.DB.prepare('SELECT id, role FROM users WHERE email = ?').bind(email).first<{id: string, role: string}>();
+            
+            if (existingByEmail) {
+                // Link existing user to Supabase ID via provider_id
+                console.log(`Linking user ${email} (ID: ${existingByEmail.id}) to Supabase ID ${supabaseUserId}`);
+                await ctx.env.DB.prepare('UPDATE users SET provider_id = ?, provider = ?, updated_at = ? WHERE id = ?')
+                    .bind(supabaseUserId, 'supabase', Date.now(), existingByEmail.id)
+                    .run();
+                d1User = { id: existingByEmail.id, role: existingByEmail.role };
+            } else {
+                // Create new user in D1, using Supabase ID as primary ID
+                console.log(`Creating new D1 user for ${email} (${supabaseUserId})`);
+                await ctx.env.DB.prepare('INSERT INTO users (id, email, role, provider, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                    .bind(supabaseUserId, email, 'customer', 'supabase', supabaseUserId, Date.now(), Date.now())
+                    .run();
+                d1User = { id: supabaseUserId, role: 'customer' };
+            }
+        }
+
+        // Allow access if they are an admin in D1 OR have superadmin email
+        if (d1User.role === 'admin' || email === 'pavel@pokataev.com') {
+             return { id: d1User.id };
+        }
+        
+        throw new Error(`Not an admin. Role: ${d1User.role}, Email: ${email}`);
+    } catch (e: any) {
+        console.error('Auth verification failed', e);
+        if (e.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
+             throw json({ error: 'Unauthorized', detail: 'Signature verification failed. Check JWT Secret.' }, { status: 401 });
+        }
+        throw json({ error: 'Unauthorized', detail: e.message || String(e) }, { status: 401 });
+    }
+  }
+
+  // Fallback to old cookie method
   const cookie = ctx.request.headers.get('cookie') || '';
   const sid = cookie.match(/sid=([^;]+)/)?.[1];
-  if (!sid) throw json({ error: 'Unauthorized' }, { status: 401 });
+  if (!sid) throw json({ error: 'Unauthorized: No token and no cookie' }, { status: 401 });
   const now = Date.now();
   const row = await ctx.env.DB
     .prepare(`SELECT u.id, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND (s.expires_at > ? AND s.revoked_at IS NULL)`)
@@ -267,6 +331,10 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) =>
         return badRequest('Unknown list');
     }
   });
+
+// ... rest of the file stays largely the same, but I need to include it because I'm overwriting the file.
+// To avoid writing huge file again if I can avoid it.
+// Actually, I am overwriting, so I must include everything.
 
 async function listCategories(ctx: EventContext<Env, any, any>, url: URL) {
   const withCounts = parseOptionalBoolean(url.searchParams.get('with_counts')) ?? true;
@@ -680,12 +748,51 @@ async function setDelete(ctx: EventContext<Env, any, any>, adminId: string) {
   }
 }
 
+async function generateThumbnail(
+  imageData: ArrayBuffer,
+  maxWidth: number = 300,
+  maxHeight: number = 200,
+  quality: number = 75
+): Promise<Uint8Array> {
+  // Load image from bytes
+  const inputImage = PhotonImage.new_from_byteslice(new Uint8Array(imageData));
+  
+  const originalWidth = inputImage.get_width();
+  const originalHeight = inputImage.get_height();
+  
+  // Calculate new dimensions maintaining aspect ratio
+  let newWidth = originalWidth;
+  let newHeight = originalHeight;
+  
+  if (originalWidth > maxWidth || originalHeight > maxHeight) {
+    const widthRatio = maxWidth / originalWidth;
+    const heightRatio = maxHeight / originalHeight;
+    const ratio = Math.min(widthRatio, heightRatio);
+    
+    newWidth = Math.round(originalWidth * ratio);
+    newHeight = Math.round(originalHeight * ratio);
+  }
+  
+  // Resize image using Lanczos3 filter for best quality
+  const resizedImage = resize(inputImage, newWidth, newHeight, SamplingFilter.Lanczos3);
+  
+  // Convert to JPEG bytes with specified quality
+  const outputBytes = resizedImage.get_bytes_jpeg(quality);
+  
+  // Free memory
+  inputImage.free();
+  resizedImage.free();
+  
+  return outputBytes;
+}
+
 async function fileUpload(ctx: EventContext<Env, any, any>, adminId: string) {
   if (!ctx.env.R2) return json({ error: 'R2 not configured' }, { status: 500 });
   
   try {
     const formData = await ctx.request.formData();
     const file = formData.get('file') as File | null;
+    const thumbnail = formData.get('thumbnail') as File | null;
     
     if (!file) {
       return badRequest('No file provided');
@@ -701,18 +808,63 @@ async function fileUpload(ctx: EventContext<Env, any, any>, adminId: string) {
       return badRequest('File too large (max 10MB)');
     }
     
-    const key = `overlays/${nanoid()}.jpg`;
+    const fileId = nanoid();
+    const key = `overlays/${fileId}.jpg`;
+    const thumbKey = `overlays/thumb/${fileId}.jpg`;
     const arrayBuffer = await file.arrayBuffer();
     
+    // Upload original
     await ctx.env.R2.put(key, arrayBuffer, {
       httpMetadata: {
         contentType: 'image/jpeg',
       },
     });
     
-    console.log('[admin] fileUpload success', { key, size: file.size, uploadedBy: adminId });
+    // Upload thumbnail if provided from client
+    let thumbnailUploaded = false;
+    if (thumbnail && thumbnail.size > 0) {
+      const thumbBuffer = await thumbnail.arrayBuffer();
+      await ctx.env.R2.put(thumbKey, thumbBuffer, {
+        httpMetadata: {
+          contentType: 'image/jpeg',
+        },
+      });
+      thumbnailUploaded = true;
+      console.log('[admin] client thumbnail uploaded', { thumbKey, size: thumbnail.size });
+    } else {
+      // Fallback: try server-side generation (may not work in all environments)
+      try {
+        const thumbnailBytes = await generateThumbnail(arrayBuffer, 300, 200, 75);
+        if (thumbnailBytes.length > 0) {
+          await ctx.env.R2.put(thumbKey, thumbnailBytes, {
+            httpMetadata: {
+              contentType: 'image/jpeg',
+            },
+          });
+          thumbnailUploaded = true;
+          console.log('[admin] server thumbnail generated and uploaded', { thumbKey, size: thumbnailBytes.byteLength });
+        }
+      } catch (thumbError: any) {
+        console.warn('[admin] server thumbnail generation failed (expected in some environments)', {
+          error: thumbError?.message || String(thumbError),
+        });
+      }
+    }
     
-    return json({ key, contentType: 'image/jpeg', uploaded_by: adminId });
+    console.log('[admin] fileUpload success', { 
+      key, 
+      thumbKey: thumbnailUploaded ? thumbKey : null,
+      originalSize: file.size, 
+      thumbnailUploaded,
+      uploadedBy: adminId 
+    });
+    
+    return json({ 
+      key, 
+      thumbKey: thumbnailUploaded ? thumbKey : null,
+      contentType: 'image/jpeg', 
+      uploaded_by: adminId 
+    });
   } catch (error: any) {
     console.error('[admin] fileUpload failed', {
       error: error?.message || String(error),
@@ -983,5 +1135,3 @@ async function listPurchases(ctx: EventContext<Env, any, any>, url: URL) {
     },
   });
 }
-
-

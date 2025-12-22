@@ -13,11 +13,13 @@ interface AdminUserRow {
   updated_at: number;
 }
 
+import { fetchWithAuth } from "@/lib/api";
+
 export const UsersPage: React.FC = () => {
   const usersQuery = useQuery<{ items: AdminUserRow[]; meta: { total: number } }>({
     queryKey: ["admin", "users"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin?list=users&limit=200`, { credentials: "include" });
+      const res = await fetchWithAuth(`/api/admin?list=users&limit=200`, { credentials: "include" });
       if (!res.ok) throw new Error("Не удалось загрузить пользователей");
       return res.json();
     },

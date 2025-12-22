@@ -6,6 +6,7 @@ import { PlusCircle, Pencil, Trash2, Upload, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { fetchWithAuth } from "@/lib/api";
+import { createThumbnail, blobToFile } from "@/lib/thumbnail";
 
 interface SetItem {
   id: string;
@@ -48,6 +51,13 @@ interface UploadedImage {
   key?: string;
 }
 
+interface UploadProgress {
+  current: number;
+  total: number;
+  fileName: string;
+  percent: number;
+}
+
 const EMPTY_FORM: SetFormValues = {
   title: "",
   category_id: "",
@@ -62,12 +72,13 @@ export const SetsPage: React.FC = () => {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<SetItem | null>(null);
   const [uploadedImages, setUploadedImages] = React.useState<UploadedImage[]>([]);
+  const [uploadProgress, setUploadProgress] = React.useState<UploadProgress | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const setsQuery = useQuery<{ items: SetItem[]; meta: { total: number } }>({
     queryKey: ["admin", "sets"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin?list=sets&limit=200`, { credentials: "include" });
+      const res = await fetchWithAuth(`/api/admin?list=sets&limit=200`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load sets");
       return res.json();
     },
@@ -77,7 +88,7 @@ export const SetsPage: React.FC = () => {
   const categoriesQuery = useQuery<{ items: Category[] }>({
     queryKey: ["admin", "categories", "list"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin?list=categories&with_counts=0`, { credentials: "include" });
+      const res = await fetchWithAuth(`/api/admin?list=categories&with_counts=0`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
@@ -89,22 +100,63 @@ export const SetsPage: React.FC = () => {
   const uploadImagesMutation = useMutation({
     mutationFn: async (files: File[]) => {
       const uploadedKeys: string[] = [];
-      for (const file of files) {
+      const total = files.length;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Обновляем прогресс
+        setUploadProgress({
+          current: i + 1,
+          total,
+          fileName: file.name,
+          percent: Math.round(((i) / total) * 100),
+        });
+        
         const formData = new FormData();
         formData.append("file", file);
-        const resp = await fetch(`/api/admin?action=file.upload`, {
+        
+        // Генерируем миниатюру на клиенте
+        try {
+          const thumbBlob = await createThumbnail(file, { maxWidth: 300, maxHeight: 200, quality: 0.75 });
+          const thumbFile = blobToFile(thumbBlob, `thumb_${file.name}`);
+          formData.append("thumbnail", thumbFile);
+          console.log('[SetsPage] Thumbnail generated:', { 
+            original: file.size, 
+            thumb: thumbBlob.size 
+          });
+        } catch (thumbError) {
+          console.warn('[SetsPage] Client thumbnail generation failed:', thumbError);
+          // Продолжаем без миниатюры - сервер попробует сгенерировать
+        }
+        
+        const resp = await fetchWithAuth(`/api/admin?action=file.upload`, {
           method: "POST",
           credentials: "include",
           body: formData,
         });
         if (!resp.ok) {
           const json = await resp.json().catch(() => ({}));
-          throw new Error(json.error || "Failed to upload image");
+          throw new Error(json.error || `Failed to upload: ${file.name}`);
         }
         const data = await resp.json();
         uploadedKeys.push(data.key);
+        
+        // Обновляем прогресс после загрузки
+        setUploadProgress({
+          current: i + 1,
+          total,
+          fileName: file.name,
+          percent: Math.round(((i + 1) / total) * 100),
+        });
       }
+      
+      // Сбрасываем прогресс после завершения
+      setUploadProgress(null);
       return uploadedKeys;
+    },
+    onError: () => {
+      setUploadProgress(null);
     },
   });
 
@@ -140,7 +192,7 @@ export const SetsPage: React.FC = () => {
       
       console.log('[SetsPage] Sending payload:', JSON.stringify(payload, null, 2));
       
-      const resp = await fetch(`/api/admin?action=${action}`, {
+      const resp = await fetchWithAuth(`/api/admin?action=${action}`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -193,7 +245,7 @@ export const SetsPage: React.FC = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (setItem: SetItem) => {
-      const resp = await fetch(`/api/admin?action=set.delete`, {
+      const resp = await fetchWithAuth(`/api/admin?action=set.delete`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -238,7 +290,7 @@ export const SetsPage: React.FC = () => {
 
     // Load existing overlays using admin API
     try {
-      const overlaysResp = await fetch(`/api/admin?action=set.get_overlays`, {
+      const overlaysResp = await fetchWithAuth(`/api/admin?action=set.get_overlays`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -494,9 +546,25 @@ export const SetsPage: React.FC = () => {
                 <input ref={fileInputRef} type="file" accept="image/jpeg,.jpg" multiple className="hidden" onChange={handleFileSelect} />
               </div>
 
-              {uploadedImages.length === 0 ? (
+              {/* Прогресс-бар загрузки */}
+              {uploadProgress && (
+                <div className="space-y-2 rounded-md bg-muted/50 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">
+                      Uploading {uploadProgress.current} of {uploadProgress.total}
+                    </span>
+                    <span className="text-muted-foreground">{uploadProgress.percent}%</span>
+                  </div>
+                  <Progress value={uploadProgress.percent} className="h-2" />
+                  <p className="text-xs text-muted-foreground truncate">
+                    {uploadProgress.fileName}
+                  </p>
+                </div>
+              )}
+
+              {uploadedImages.length === 0 && !uploadProgress ? (
                 <p className="text-xs text-muted-foreground">Upload at least one JPG image to create the set.</p>
-              ) : (
+              ) : uploadedImages.length === 0 ? null : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {uploadedImages.map((img, index) => (
                     <div key={index} className="relative group rounded-md border border-border overflow-hidden">
