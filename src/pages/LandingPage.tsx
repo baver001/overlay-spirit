@@ -185,9 +185,13 @@ const LandingPage: React.FC = () => {
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div 
                     key={i} 
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-[#0f1419] flex items-center justify-center text-xs font-bold"
+                    className="w-10 h-10 rounded-full border-2 border-[#0f1419] overflow-hidden bg-zinc-800 shadow-lg"
                   >
-                    {String.fromCharCode(64 + i)}
+                    <img 
+                      src={`/assets/users/user${i}.png`} 
+                      alt={`User ${i}`} 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 ))}
               </div>
