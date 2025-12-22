@@ -23,6 +23,11 @@ export default {
         sans: ["Onest", "sans-serif"],
       },
       colors: {
+        brand: {
+          peach: "#F9AD87",
+          pink: "#F499BD",
+          purple: "#9663A1",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -80,6 +85,9 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+      },
+      backgroundImage: {
+        'brand-gradient': 'radial-gradient(circle at top left, #F9AD87, #F499BD, #9663A1)',
       },
     },
   },

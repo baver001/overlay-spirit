@@ -108,7 +108,7 @@ const LandingPage: React.FC = () => {
               {t('common.login')}
             </Button>
             <Button 
-              className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-600/25"
+              className="bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20"
               onClick={() => openAuth('register')}
             >
               {t('common.start_free')}
@@ -124,15 +124,15 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-blue-500/30 mb-8 animate-fade-in" style={{ background: 'hsla(215 27.9% 16% / 0.8)' }}>
-              <Wand2 className="w-4 h-4 text-blue-400" />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-brand-pink/30 mb-8 animate-fade-in" style={{ background: 'hsla(215 27.9% 16% / 0.8)' }}>
+              <Wand2 className="w-4 h-4 text-brand-peach" />
               <span className="text-sm text-zinc-300">{t('landing.badge')}</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6 animate-fade-in-up">
               {t('landing.title_start')}{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500">
+              <span className="text-transparent bg-clip-text bg-brand-gradient">
                 {t('landing.title_highlight')}
               </span>
               <br />
@@ -149,7 +149,7 @@ const LandingPage: React.FC = () => {
               {user ? (
                 <Button 
                   size="lg"
-                  className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-xl shadow-blue-600/30 px-12 py-6 text-lg group"
+                  className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-12 py-6 text-lg group"
                   onClick={() => window.location.href = getEditorUrl()}
                 >
                   {t('common.open_editor')}
@@ -159,7 +159,7 @@ const LandingPage: React.FC = () => {
                 <>
                   <Button 
                     size="lg"
-                    className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-xl shadow-blue-600/30 px-8 py-6 text-lg group"
+                    className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-8 py-6 text-lg group"
                     onClick={handleStart}
                   >
                     {t('common.try_free')}
@@ -234,7 +234,7 @@ const LandingPage: React.FC = () => {
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
               {t('landing.features_title')}{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+              <span className="text-transparent bg-clip-text bg-brand-gradient">
                 {t('landing.features_title_highlight')}
               </span>
             </h2>
@@ -416,7 +416,7 @@ const LandingPage: React.FC = () => {
                 ))}
               </ul>
               <Button 
-                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white border-0"
+                className="w-full bg-brand-gradient text-white border-0 shadow-lg shadow-brand-pink/20"
                 onClick={() => openAuth('register')}
               >
                 {t('landing.subscribe')}
@@ -429,8 +429,8 @@ const LandingPage: React.FC = () => {
       {/* CTA Section */}
       <section className="relative z-10 py-32 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="p-12 rounded-3xl border border-blue-500/20 relative overflow-hidden" style={{ background: 'hsla(215 27.9% 16% / 0.8)' }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-cyan-600/10" />
+          <div className="p-12 rounded-3xl border border-brand-pink/20 relative overflow-hidden" style={{ background: 'hsla(215 27.9% 16% / 0.8)' }}>
+            <div className="absolute inset-0 bg-brand-gradient opacity-10" />
             <div className="relative">
               <h2 className="text-4xl md:text-5xl font-bold mb-4">
                 {t('landing.cta_title')}
@@ -442,7 +442,7 @@ const LandingPage: React.FC = () => {
                 {user ? (
                   <Button 
                     size="lg"
-                    className="bg-white text-zinc-900 hover:bg-zinc-100 px-12 py-6 text-lg font-semibold"
+                    className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-12 py-6 text-lg font-semibold"
                     onClick={() => window.location.href = getEditorUrl()}
                   >
                     {t('common.open_editor')}
@@ -451,7 +451,7 @@ const LandingPage: React.FC = () => {
                   <>
                     <Button 
                       size="lg"
-                      className="bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-6 text-lg font-semibold"
+                      className="bg-brand-gradient text-white border-0 shadow-xl shadow-brand-pink/30 px-8 py-6 text-lg font-semibold"
                       onClick={() => openAuth('register')}
                     >
                       {t('landing.create_account')}

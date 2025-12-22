@@ -277,16 +277,21 @@ const PurchaseButton: React.FC<PurchaseButtonProps> = ({ setId, priceCents }) =>
   };
 
   const price = priceCents ? (priceCents / 100).toFixed(2) : null;
+  const oldPrice = "12.00";
 
   return (
     <Button
       onClick={handlePurchase}
       disabled={loading}
-      className="w-full mb-3"
-      size="sm"
+      className="w-full mb-3 h-[44px] bg-brand-gradient hover:opacity-90 transition-opacity border-0 text-white"
     >
       <ShoppingCart className="w-4 h-4 mr-2" />
-      {loading ? t('editor.loading') : price ? `${t('editor.buy_for')} $${price}` : t('editor.buy')}
+      <div className="flex flex-col items-center">
+        {price && <span className="text-[10px] line-through opacity-70 leading-none mb-0.5">$ {oldPrice}</span>}
+        <span className="font-bold leading-none">
+          {loading ? t('editor.loading') : price ? `${t('editor.buy')} $${price}` : t('editor.buy')}
+        </span>
+      </div>
     </Button>
   );
 };
