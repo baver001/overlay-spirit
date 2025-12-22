@@ -439,22 +439,34 @@ const LandingPage: React.FC = () => {
                 {t('landing.cta_subtitle')}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button 
-                  size="lg"
-                  className="bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-6 text-lg font-semibold"
-                  onClick={() => openAuth('register')}
-                >
-                  {t('landing.create_account')}
-                </Button>
-                <a href={getEditorUrl()}>
+                {user ? (
                   <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="border-white/30 bg-transparent hover:bg-white/10 text-white px-8 py-6 text-lg"
+                    size="lg"
+                    className="bg-white text-zinc-900 hover:bg-zinc-100 px-12 py-6 text-lg font-semibold"
+                    onClick={() => window.location.href = getEditorUrl()}
                   >
-                    {t('landing.try_without_reg')}
+                    {t('common.open_editor')}
                   </Button>
-                </a>
+                ) : (
+                  <>
+                    <Button 
+                      size="lg"
+                      className="bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-6 text-lg font-semibold"
+                      onClick={() => openAuth('register')}
+                    >
+                      {t('landing.create_account')}
+                    </Button>
+                    <a href={getEditorUrl()}>
+                      <Button 
+                        size="lg" 
+                        variant="outline" 
+                        className="border-white/30 bg-transparent hover:bg-white/10 text-white px-8 py-6 text-lg"
+                      >
+                        {t('landing.try_without_reg')}
+                      </Button>
+                    </a>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -479,7 +491,7 @@ const LandingPage: React.FC = () => {
               <a href="mailto:support@loverlay.com" className="hover:text-white transition-colors">{t('common.support')}</a>
             </div>
             <p className="text-sm text-zinc-500">
-              © 2024 Loverlay. {t('common.rights_reserved')}
+              © 2025 Loverlay by LevelUP. {t('common.rights_reserved')}
             </p>
           </div>
         </div>
