@@ -44,12 +44,7 @@ const DomainHandler: React.FC = () => {
     // Не редиректим, если уже был редирект (защита от циклов)
     if (wasRedirected) return;
 
-    if (isAppDomain) {
-        if (!user && !isGuest) {
-            // Redirect to landing if not logged in and not guest
-            window.location.href = 'https://loverlay.com?r=1';
-        }
-    } else if (isMainDomain) {
+    if (isMainDomain) {
         if (user) {
             // Redirect to editor if logged in
             window.location.href = 'https://app.loverlay.com?r=1';
@@ -63,8 +58,6 @@ const DomainHandler: React.FC = () => {
 
   // App Domain Logic
   if (isAppDomain) {
-      // Если нет пользователя и не гость - но уже был редирект, показываем редактор в guest режиме
-      if (!user && !isGuest && !wasRedirected) return null; // Redirecting
       return (
         <Routes>
            <Route path="/" element={<Index />} />
