@@ -215,10 +215,17 @@ const LandingPage: React.FC = () => {
             >
               {/* App Preview */}
               <div className="relative w-full overflow-hidden">
+                {/* Desktop Screenshot */}
                 <img 
                   src="/assets/landing-screenshot.png" 
-                  alt="Loverlay Editor Screenshot" 
-                  className="w-full h-auto object-contain block"
+                  alt="Loverlay Editor Desktop Screenshot" 
+                  className="hidden md:block w-full h-auto object-contain"
+                />
+                {/* Mobile Screenshot */}
+                <img 
+                  src="/assets/landing-screenshot-mobile.png" 
+                  alt="Loverlay Editor Mobile Screenshot" 
+                  className="block md:hidden w-full h-auto object-contain"
                 />
                 {/* Subtle inner shadow for depth */}
                 <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(0,0,0,0.3)] pointer-events-none" />
