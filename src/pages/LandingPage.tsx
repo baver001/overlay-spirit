@@ -24,14 +24,14 @@ const ThreeBackground = lazy(() => import('@/components/ThreeBackground'));
 
 const LandingPage: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('register');
 
   const openAuth = (mode: 'login' | 'register') => {
     if (user) {
-      navigate('/editor');
+      window.location.href = 'https://app.loverlay.com';
       return;
     }
     setAuthMode(mode);
@@ -39,14 +39,6 @@ const LandingPage: React.FC = () => {
   };
 
   const getEditorUrl = () => {
-    const hostname = window.location.hostname;
-    
-    // Для разработки и превью используем относительный путь
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.pages.dev')) {
-        return '/editor';
-    }
-    
-    // Для основного домена перенаправляем на поддомен app
     return 'https://app.loverlay.com';
   };
 
@@ -57,6 +49,11 @@ const LandingPage: React.FC = () => {
         openAuth('register');
     }
   }
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen text-white overflow-hidden" style={{ background: 'hsl(215 27.9% 8%)' }}>
@@ -95,10 +92,11 @@ const LandingPage: React.FC = () => {
             <LanguageSwitcher />
             {user ? (
                <Button 
-                className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-600/25"
-                onClick={() => navigate('/editor')}
+                variant="ghost"
+                className="text-zinc-400 hover:text-white hover:bg-white/10"
+                onClick={handleLogout}
               >
-                {t('common.open_editor')}
+                {t('common.logout') || 'Sign Out'}
               </Button>
             ) : (
                 <>
@@ -117,7 +115,6 @@ const LandingPage: React.FC = () => {
             </Button>
                 </>
             )}
-            
           </div>
         </div>
       </header>
@@ -149,24 +146,37 @@ const LandingPage: React.FC = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-200">
-              <Button 
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-xl shadow-blue-600/30 px-8 py-6 text-lg group"
-                onClick={handleStart}
-              >
-                {user ? t('common.open_editor') : t('common.try_free')}
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <a href={getEditorUrl()}>
+              {user ? (
                 <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-white/20 bg-white/5 hover:bg-white/10 text-white px-8 py-6 text-lg group backdrop-blur-sm"
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-xl shadow-blue-600/30 px-12 py-6 text-lg group"
+                  onClick={() => window.location.href = getEditorUrl()}
                 >
-                  <Play className="mr-2 w-5 h-5" />
                   {t('common.open_editor')}
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
-              </a>
+              ) : (
+                <>
+                  <Button 
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-xl shadow-blue-600/30 px-8 py-6 text-lg group"
+                    onClick={handleStart}
+                  >
+                    {t('common.try_free')}
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                  <a href={getEditorUrl()}>
+                    <Button 
+                      size="lg" 
+                      variant="outline" 
+                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white px-8 py-6 text-lg group backdrop-blur-sm"
+                    >
+                      <Play className="mr-2 w-5 h-5" />
+                      {t('common.open_editor')}
+                    </Button>
+                  </a>
+                </>
+              )}
             </div>
 
             {/* Social proof */}
@@ -193,21 +203,21 @@ const LandingPage: React.FC = () => {
           </div>
 
           {/* Hero Image / Demo */}
-          <div className="mt-20 relative animate-fade-in-up delay-500">
+          <div className="mt-20 relative animate-fade-in-up delay-500 max-w-5xl mx-auto px-4">
             <div className="absolute inset-x-0 -bottom-24 h-64 bg-gradient-to-t from-[#0f1419] via-[#0f1419]/80 to-transparent z-10 pointer-events-none" />
             <div 
               className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-blue-500/20 backdrop-blur"
               style={{ background: 'hsla(215 27.9% 12% / 0.9)' }}
             >
               {/* App Preview */}
-              <div className="aspect-[16/9] relative">
+              <div className="relative w-full overflow-hidden">
                 <img 
                   src="/assets/landing-screenshot.png" 
                   alt="Loverlay Editor Screenshot" 
-                  className="w-full h-full object-cover object-top"
+                  className="w-full h-auto object-contain block"
                 />
-                {/* Overlay gradient for depth */}
-                <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.2)] pointer-events-none" />
+                {/* Subtle inner shadow for depth */}
+                <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(0,0,0,0.3)] pointer-events-none" />
               </div>
             </div>
           </div>
