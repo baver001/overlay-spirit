@@ -96,7 +96,7 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
     .all();
 
   // Get sets with their preview overlays
-  const setsStmt = ctx.env.DB.prepare(`SELECT s.id, s.title, s.description, s.cover_image_url, s.is_paid, s.price_cents, s.discount_price_cents, s.updated_at, s.created_at, s.category_id
+  const setsStmt = ctx.env.DB.prepare(`SELECT s.id, s.title, s.description, s.cover_image_url, s.is_paid, s.price_cents, s.discount_price_cents, s.updated_at, s.created_at, s.category_id, s.default_blend_mode
                                        FROM overlay_sets s
                                        WHERE s.is_active = 1
                                        ORDER BY s.updated_at DESC
@@ -157,7 +157,7 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
 
   const setsByCategory: Record<string, any[]> = {};
 
-  rawSets.forEach((set: any) => {
+    rawSets.forEach((set: any) => {
     const grouping = set.category_id ?? 'uncategorized';
     if (!setsByCategory[grouping]) {
       setsByCategory[grouping] = [];
@@ -174,6 +174,7 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
       overlaysCount: setOverlays.length,
       isPaid,
       isPurchased,
+      defaultBlendMode: set.default_blend_mode,
     });
 
     setsByCategory[grouping].push({
@@ -187,6 +188,7 @@ async function catalogResponse(ctx: EventContext<Env, any, any>) {
       discountPriceCents: set.discount_price_cents,
       updatedAt: set.updated_at,
       createdAt: set.created_at,
+      defaultBlendMode: set.default_blend_mode || 'screen',
       previewOverlays: setOverlays, // Now contains ALL overlays, not just first 3
     });
   });

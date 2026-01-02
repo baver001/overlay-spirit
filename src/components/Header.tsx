@@ -27,7 +27,7 @@ const Header: React.FC = React.memo(() => {
     <>
       <header className="flex items-center p-4 border-b border-border fixed top-0 left-0 right-0 bg-background/80 backdrop-blur-sm z-20 h-[60px]">
         <a href="https://loverlay.com" className="flex items-center gap-3">
-          <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
+          <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
         </a>
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />

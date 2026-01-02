@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { fetchWithAuth } from '@/lib/api';
 
 interface UserInfo {
   id: string;
@@ -20,6 +21,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const syncUserToD1 = async () => {
+    try {
+      const res = await fetchWithAuth('/api/verify');
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[AuthContext] User synced to D1:', data.user);
+        return data.user;
+      }
+    } catch (error) {
+      console.warn('[AuthContext] Failed to sync user to D1:', error);
+    }
+    return null;
+  };
+
   const refreshUser = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -32,6 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: session.user.email || '',
           role: role,
         });
+
+        // Trigger sync to D1 in background
+        syncUserToD1();
       } else {
         setUser(null);
       }
@@ -55,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     refreshUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
        if (session?.user) {
         const role = (session.user.user_metadata?.role as 'admin' | 'customer') || 'customer';
         setUser({
@@ -63,6 +81,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: session.user.email || '',
           role: role,
         });
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          syncUserToD1();
+        }
        } else {
          setUser(null);
        }

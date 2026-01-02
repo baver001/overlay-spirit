@@ -11,6 +11,11 @@
     "support": "Support",
     "privacy": "Privacy Policy",
     "terms": "Terms of Use",
+    "refunds": "Refund Policy",
+    "back_to_home": "Back to Home",
+    "something_went_wrong": "Something went wrong",
+    "google_auth_error": "Google Auth Error",
+    "apple_auth_error": "Apple Auth Error",
     "rights_reserved": "All rights reserved.",
     "or": "or",
     "email": "Email",
@@ -143,6 +148,7 @@
     "share_error": "Error sharing",
     "save": "Save",
     "share": "Share",
+    "compare": "Hide",
     "deploy": "Deploy",
     "image_dropzone": {
       "error_type": "Only images (JPG, PNG, GIF, WebP) are supported",
@@ -304,19 +310,19 @@
   },
   "refunds_page": {
     "title": "Refund Policy",
-    "last_updated": "Last updated: December 16, 2025",
-    "intro": "Loverlay provides digital goods (overlays). Due to the nature of digital products, returns are handled differently than physical goods.",
+    "last_updated": "Last updated: December 23, 2025",
+    "intro": "Loverlay provides digital goods (overlays).\n\nWe offer a 14-day refund window in accordance with Paddle’s refund policy and applicable consumer protection laws.",
     "conditions": {
-      "title": "Refund Conditions",
-      "text": "Refunds may be issued in the following cases:\n1. Technical Defect: The product is technically defective and we cannot resolve the issue.\n2. Duplicate Charge: You were charged twice for the same product due to a technical error.\n3. Legal Requirement: As required by applicable consumer protection laws."
+      "title": "Refund Eligibility",
+      "text": "You may request a refund within 14 days of purchase in the following cases:\n1. You are not satisfied with the product.\n2. The product does not meet your expectations.\n3. The product has technical issues that cannot be resolved.\n4. You were charged twice due to a technical error.\n5. A refund is required by applicable law.\n\nAfter the 14-day period, refunds are generally not granted."
     },
     "how_to": {
       "title": "How to Request a Refund",
-      "text": "Please contact us at support@loverlay.com with your order details. We review refund requests within 3 business days."
+      "text": "To request a refund, please contact us within 14 days of purchase at support@loverlay.com and include your order details. We review refund requests within 3 business days."
     },
     "non_refundable": {
-      "title": "Non-Refundable Cases",
-      "text": "Refunds are generally not granted for 'change of mind' or if the product was successfully accessed/downloaded and matches the description."
+      "title": "Access and Use",
+      "text": "By purchasing and downloading our digital products, you acknowledge that digital content is delivered immediately after purchase. This does not affect your statutory right to request a refund within the 14-day period."
     }
   },
   "terms_page": {

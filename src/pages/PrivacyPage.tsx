@@ -19,7 +19,7 @@ const PrivacyPage: React.FC = () => {
             onClick={() => navigate('/')}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
+            {t('common.back_to_home')}
           </Button>
           <LanguageSwitcher />
         </div>

@@ -4,12 +4,21 @@ import { Overlay } from '@/lib/types';
 import { APP_CONFIG, CANVAS_BLEND_MAP } from '@/lib/constants';
 import { snapToEdges, SnapResult } from '@/lib/snap';
 import ImageDropzone from './ImageDropzone';
-import ImageManager from './ImageManager';
-import OverlaySettingsModal from './OverlaySettingsModal';
 import OverlayTransformFrame from './OverlayTransformFrame';
 import EditorInstructions from './EditorInstructions';
 import { Button } from '@/components/ui/button';
-import { Save, Share } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Save, Share, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Вычисление расстояния между двумя точками касания для pinch-zoom
@@ -17,6 +26,13 @@ const getTouchDistance = (touch1: Touch, touch2: Touch): number => {
   const dx = touch1.clientX - touch2.clientX;
   const dy = touch1.clientY - touch2.clientY;
   return Math.sqrt(dx * dx + dy * dy);
+};
+
+// Вычисление угла между двумя точками касания
+const getTouchAngle = (touch1: Touch, touch2: Touch): number => {
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.atan2(dy, dx) * (180 / Math.PI);
 };
 
 interface EditorCanvasProps {
@@ -46,17 +62,144 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   overlayAspectRatios,
 }) => {
   const { t } = useTranslation();
-  const [settingsOverlayId, setSettingsOverlayId] = useState<string | null>(null);
   const [localAspectRatios, setLocalAspectRatios] = useState<Record<string, number>>({});
   const [canvasOffset, setCanvasOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [snapGuides, setSnapGuides] = useState<{ snappedX: SnapResult['snappedX']; snappedY: SnapResult['snappedY'] } | null>(null);
+  const [isTemporarilyHidden, setIsTemporarilyHidden] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const historyRef = useRef<string[]>([]);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const fittedOverlaysRef = useRef<Set<string>>(new Set());
+
+  // Сохранение в историю перед изменениями (очень простая реализация)
+  const saveToHistory = useCallback(() => {
+    const currentState = JSON.stringify(overlays);
+    if (historyRef.current[historyRef.current.length - 1] !== currentState) {
+      historyRef.current.push(currentState);
+      if (historyRef.current.length > 50) historyRef.current.shift();
+    }
+  }, [overlays]);
+
+  const undo = useCallback(() => {
+    if (historyRef.current.length > 0) {
+      const lastState = historyRef.current.pop();
+      if (lastState) {
+        const parsed = JSON.parse(lastState) as Overlay[];
+        // Здесь нужен способ обновить весь массив оверлеев. 
+        // Поскольку props приходят сверху, нам нужно вызвать update для каждого или иметь onUpdateAll
+        // Для простоты пока предположим, что мы работаем с одним (текущим)
+        if (selectedOverlayId) {
+          const oldOverlay = parsed.find(o => o.id === selectedOverlayId);
+          if (oldOverlay) onUpdateOverlay(oldOverlay.id, oldOverlay);
+        }
+      }
+    }
+  }, [selectedOverlayId, onUpdateOverlay]);
+
+  const handleUpdate = useCallback((id: string, newProps: Partial<Overlay>) => {
+    saveToHistory();
+    onUpdateOverlay(id, newProps);
+  }, [onUpdateOverlay, saveToHistory]);
+
+  const handleDelete = useCallback((id: string) => {
+    saveToHistory();
+    onDeleteOverlay(id);
+  }, [onDeleteOverlay, saveToHistory]);
+
+  // Keyboard handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Если нажат Space или \ — скрываем оверлеи
+      if (e.key === ' ' || e.key === '\\') {
+        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          setIsTemporarilyHidden(true);
+        }
+      }
+
+      if (!selectedOverlayId) return;
+      const overlay = overlays.find(o => o.id === selectedOverlayId);
+      if (!overlay) return;
+
+      // Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      const step = e.shiftKey ? 10 : 1;
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          handleUpdate(overlay.id, { x: overlay.x - step });
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleUpdate(overlay.id, { x: overlay.x + step });
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          handleUpdate(overlay.id, { y: overlay.y - step });
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          handleUpdate(overlay.id, { y: overlay.y + step });
+          break;
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault();
+          handleDelete(overlay.id);
+          break;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === '\\') {
+        setIsTemporarilyHidden(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [selectedOverlayId, overlays, onUpdateOverlay, onDeleteOverlay, undo]);
+
+  // Mouse wheel handler
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!selectedOverlayId) return;
+    const overlay = overlays.find(o => o.id === selectedOverlayId);
+    if (!overlay) return;
+
+    e.preventDefault();
+    
+    if (e.altKey) {
+      // Rotation
+      const delta = e.deltaY > 0 ? 5 : -5;
+      let newRotation = (overlay.rotation + delta) % 360;
+      if (newRotation < 0) newRotation += 360;
+      handleUpdate(overlay.id, { rotation: newRotation });
+    } else {
+      // Scale
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      const newScale = Math.max(0.1, Math.min(5, overlay.scale + delta));
+      handleUpdate(overlay.id, { scale: newScale });
+    }
+  }, [selectedOverlayId, overlays, handleUpdate]);
   
-  // Pinch-zoom state
+  // Pinch-zoom & rotation state
   const pinchRef = useRef<{
     overlayId: string;
     initialDistance: number;
     initialScale: number;
+    initialAngle: number;
+    initialRotation: number;
   } | null>(null);
 
   // Подгружаем естественные пропорции изображений-оверлеев для DOM-рендера,
@@ -69,7 +212,30 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       const im = new Image();
       im.crossOrigin = 'anonymous';
       im.onload = () => {
-        setLocalAspectRatios((prev) => ({ ...prev, [o.id]: im.naturalWidth / im.naturalHeight }));
+        const aspectRatio = im.naturalWidth / im.naturalHeight;
+        setLocalAspectRatios((prev) => ({ ...prev, [o.id]: aspectRatio }));
+        
+        // Автоматическая подгонка для новых оверлеев на вертикальных фото
+        if (imageDimensions && imageDimensions.height > imageDimensions.width && !fittedOverlaysRef.current.has(o.id)) {
+          fittedOverlaysRef.current.add(o.id);
+          
+          const isImgVertical = true;
+          const isOverlayVertical = aspectRatio < 1;
+          const shouldRotate = !isOverlayVertical; // Если оверлей горизонтальный, а фото вертикальное
+          const targetRotation = shouldRotate ? 90 : 0;
+          
+          let targetScale = 1;
+          if (shouldRotate) {
+            targetScale = 1 / aspectRatio;
+          }
+          
+          onUpdateOverlay(o.id, { 
+            rotation: targetRotation, 
+            scale: targetScale,
+            x: 0,
+            y: 0
+          });
+        }
       };
       // Преобразуем ключ из БД в полный URL, если нужно
       let imageUrl = o.value;
@@ -134,7 +300,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     
     const overlay = overlays.find(o => o.id === id);
     if (!overlay || !imageStyle.width || !imageStyle.height) {
-      onUpdateOverlay(id, pos);
+      handleUpdate(id, pos);
       return;
     }
 
@@ -155,7 +321,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       setSnapGuides(null);
     }
 
-    onUpdateOverlay(id, { x: snapped.x, y: snapped.y });
+    handleUpdate(id, { x: snapped.x, y: snapped.y });
   });
 
   // Скрываем направляющие когда drag закончен
@@ -410,7 +576,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     }
   }, [image, imageDimensions, overlays, t]);
 
-  const settingsOverlay = overlays.find(o => o.id === settingsOverlayId);
   const selectedOverlay = overlays.find(o => o.id === selectedOverlayId);
 
   // Отслеживаем позицию canvas для рамки трансформации
@@ -470,37 +635,89 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       
       {/* Кнопки управления */}
       {image && (
-        <div className="absolute top-4 right-4 flex gap-2 z-20">
-          <Button
-            onClick={handleSave}
-            variant="secondary"
-            size="sm"
-            className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {t('editor.save')}
-          </Button>
-          <Button
-            onClick={handleShare}
-            variant="secondary"
-            size="sm"
-            className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-          >
-            <Share className="w-4 h-4 mr-2" />
-            {t('editor.share')}
-          </Button>
-        </div>
+        <>
+          {/* Кнопка удалить изображение - слева */}
+          <div className="absolute top-4 left-4 z-20">
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="bg-red-500/80 hover:bg-red-600/80 backdrop-blur-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('editor.image_manager.delete_title')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('editor.image_manager.delete_desc')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      onImageRemove();
+                      setIsDeleteDialogOpen(false);
+                    }}
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {t('editor.image_manager.delete')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          {/* Остальные кнопки - справа */}
+          <div className="absolute top-4 right-4 flex gap-2 z-20">
+            <Button
+              onMouseDown={() => setIsTemporarilyHidden(true)}
+              onMouseUp={() => setIsTemporarilyHidden(false)}
+              onMouseLeave={() => setIsTemporarilyHidden(false)}
+              onTouchStart={() => setIsTemporarilyHidden(true)}
+              onTouchEnd={() => setIsTemporarilyHidden(false)}
+              variant="secondary"
+              size="sm"
+              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 select-none"
+              title={t('editor.compare')}
+            >
+              {isTemporarilyHidden ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {t('editor.compare')}
+            </Button>
+            <Button
+              onClick={handleSave}
+              variant="secondary"
+              size="sm"
+              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {t('editor.save')}
+            </Button>
+            <Button
+              onClick={handleShare}
+              variant="secondary"
+              size="sm"
+              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+            >
+              <Share className="w-4 h-4 mr-2" />
+              {t('editor.share')}
+            </Button>
+          </div>
+        </>
       )}
 
       <div 
         className="absolute inset-0 flex items-center justify-center p-4 md:p-8 pb-20 md:pb-8"
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
         onClick={(e) => {
-          // Клик по фону холста — закрываем редактор
-          if (e.target === e.currentTarget) {
-            onSelectOverlay(null);
-          }
+          // Клик по фону или по самому изображению (не оверлею) — снимаем выделение
+          onSelectOverlay(null);
         }}
       >
         {!image ? (
@@ -539,7 +756,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
               />
 
               {/* Оверлеи: позиционируются внутри родительского контейнера, который имеет overflow:hidden */}
-            {Array.isArray(overlays) && overlays.length > 0 && overlays.map((overlay) => {
+            {Array.isArray(overlays) && overlays.length > 0 && !isTemporarilyHidden && overlays.map((overlay) => {
               const aspectRatio = overlayAspectRatios?.[overlay.id] ?? localAspectRatios[overlay.id];
                 let sizeStyle = {};
 
@@ -592,17 +809,20 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       e.stopPropagation();
                       onSelectOverlay(overlay.id);
                       
-                      // Pinch-zoom: 2 касания
+                      // Pinch-zoom & rotation: 2 касания
                       if (e.touches.length === 2) {
                         e.preventDefault();
                         const touch1 = e.touches[0];
                         const touch2 = e.touches[1];
                         const distance = getTouchDistance(touch1, touch2);
+                        const angle = getTouchAngle(touch1, touch2);
                         
                         pinchRef.current = {
                           overlayId: overlay.id,
                           initialDistance: distance,
                           initialScale: overlay.scale,
+                          initialAngle: angle,
+                          initialRotation: overlay.rotation,
                         };
                       } else if (e.touches.length === 1) {
                         // Обычный drag: 1 касание
@@ -610,7 +830,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       }
                     }}
                     onTouchMove={(e) => {
-                      // Pinch-zoom: обработка движения двумя пальцами
+                      // Pinch-zoom & rotation: обработка движения двумя пальцами
                       if (e.touches.length === 2 && pinchRef.current && pinchRef.current.overlayId === overlay.id) {
                         e.preventDefault();
                         e.stopPropagation();
@@ -618,15 +838,24 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         const touch1 = e.touches[0];
                         const touch2 = e.touches[1];
                         const currentDistance = getTouchDistance(touch1, touch2);
+                        const currentAngle = getTouchAngle(touch1, touch2);
                         
-                        const { initialDistance, initialScale } = pinchRef.current;
+                        const { initialDistance, initialScale, initialAngle, initialRotation } = pinchRef.current;
+                        
+                        // Scale
                         const scaleFactor = currentDistance / initialDistance;
                         let newScale = initialScale * scaleFactor;
-                        
-                        // Ограничиваем масштаб
                         newScale = Math.max(0.1, Math.min(5, newScale));
                         
-                        onUpdateOverlay(overlay.id, { scale: newScale });
+                        // Rotation
+                        const angleDiff = currentAngle - initialAngle;
+                        let newRotation = (initialRotation + angleDiff) % 360;
+                        if (newRotation < 0) newRotation += 360;
+                        
+                        handleUpdate(overlay.id, { 
+                          scale: newScale,
+                          rotation: newRotation 
+                        });
                       }
                     }}
                     onTouchEnd={(e) => {
@@ -667,11 +896,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 );
               })}
               
-              <ImageManager 
-                image={image}
-                onImageSelect={onImageSelect}
-                onImageRemove={onImageRemove}
-              />
 
               {/* Snap guides — направляющие для прилипания */}
               {snapGuides && isDragging && (
@@ -725,19 +949,9 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         )}
       </div>
 
-      {settingsOverlay && (
-        <OverlaySettingsModal
-          overlay={settingsOverlay}
-          isOpen={!!settingsOverlayId}
-          onClose={() => setSettingsOverlayId(null)}
-          onUpdate={onUpdateOverlay}
-          onDelete={onDeleteOverlay}
-        />
-      )}
-
       {/* Рамка трансформации для выбранного оверлея — рендерится поверх всего */}
       {/* Показываем только когда оверлей загружен (для image — есть aspectRatio, для css — сразу) */}
-      {selectedOverlay && image && canvasOffset.x !== 0 && (
+      {selectedOverlay && image && canvasOffset.x !== 0 && !isTemporarilyHidden && (
         selectedOverlay.type === 'css' || 
         overlayAspectRatios?.[selectedOverlay.id] !== undefined || 
         localAspectRatios[selectedOverlay.id] !== undefined
@@ -747,8 +961,10 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           width={getOverlayFrameDimensions(selectedOverlay).width}
           height={getOverlayFrameDimensions(selectedOverlay).height}
           canvasOffset={canvasOffset}
-          onUpdate={onUpdateOverlay}
-          onDelete={onDeleteOverlay}
+          imageDimensions={imageDimensions}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onDeselect={() => onSelectOverlay(null)}
         />
       )}
     </main>

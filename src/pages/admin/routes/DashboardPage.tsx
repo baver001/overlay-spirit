@@ -23,6 +23,7 @@ interface StatsResponse {
     sets: number;
     paid_sets: number;
     active_sets: number;
+    draft_sets: number;
     total_purchases: number;
     revenue_cents: number;
     new_users: number;
@@ -132,7 +133,7 @@ export const DashboardPage: React.FC = () => {
         ) : statsQuery.data ? (
           <>
             <StatCard title="Категории" value={statsQuery.data.stats.categories} />
-            <StatCard title="Наборы" value={statsQuery.data.stats.sets} description={`${statsQuery.data.stats.active_sets} активных, ${statsQuery.data.stats.paid_sets} платных`} />
+            <StatCard title="Наборы" value={statsQuery.data.stats.sets} description={`${statsQuery.data.stats.active_sets} активных, ${statsQuery.data.stats.draft_sets} черновиков`} />
             <StatCard title="Покупки" value={statsQuery.data.stats.total_purchases} description={`${statsQuery.data.stats.active_customers} покупателей`} />
             <StatCard title="Выручка" value={currency.format(statsQuery.data.stats.revenue_cents / 100)} description={`${statsQuery.data.stats.new_users} новых пользователей`} />
           </>

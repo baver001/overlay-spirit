@@ -4,6 +4,7 @@ pages_build_output_dir = "dist"
 
 [vars]
 NODE_ENV = "production"
+ADMIN_EMAIL = "pavel@pokataev.com"
 
 [[d1_databases]]
 binding = "DB"
@@ -13,6 +14,7 @@ database_name = "loverlay"
 # Environment variables for the build
 [env.production.vars]
 NODE_ENV = "production"
+ADMIN_EMAIL = "pavel@pokataev.com"
 
 [[env.production.d1_databases]]
 binding = "DB"

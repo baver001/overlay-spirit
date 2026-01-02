@@ -1,20 +1,17 @@
-import React, { useState, useCallback } from 'react';
-import { ChevronUp, ChevronDown, Layers, Settings2, ChevronLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronUp, ChevronDown, Layers, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import OverlayCategoryNav from './OverlayCategoryNav';
 import OverlaySetGrid from './OverlaySetGrid';
-import OverlayEditor from './OverlayEditor';
 import { Overlay } from '@/lib/types';
-import { Button } from './ui/button';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { OverlaysCatalogResponse, MOCK_CATALOG } from '@/lib/overlayData';
 import { Spinner } from './ui/spinner';
 
-type PanelMode = 'collapsed' | 'categories' | 'sets' | 'editor';
+type PanelMode = 'collapsed' | 'categories' | 'sets';
 
 interface MobileOverlayPanelProps {
-  onAddOverlay: (type: 'css' | 'image', value: string) => void;
+  onAddOverlay: (type: 'css' | 'image', value: string, blendMode?: string) => void;
   selectedOverlay?: Overlay;
   onUpdateOverlay?: (id: string, newProps: Partial<Overlay>) => void;
   onDeleteOverlay?: (id: string) => void;
@@ -80,6 +77,11 @@ const MobileOverlayPanel: React.FC<MobileOverlayPanelProps> = ({
     setMode('categories');
   };
 
+  const handleAddOverlay = (type: 'css' | 'image', value: string, blendMode?: string) => {
+    onAddOverlay(type, value, blendMode);
+    setMode('collapsed'); // Закрываем панель после добавления
+  };
+
   const isOpen = mode !== 'collapsed';
 
   // Вычисляем высоту панели
@@ -108,10 +110,8 @@ const MobileOverlayPanel: React.FC<MobileOverlayPanelProps> = ({
           <button
             onClick={() => handleToggle('categories')}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 h-11 text-sm font-semibold rounded-xl transition-all duration-200 text-white",
-              (mode === 'categories' || mode === 'sets') 
-                ? "shadow-lg ring-2 ring-white/30" 
-                : "shadow-md"
+              "flex-1 flex items-center justify-center gap-2 h-11 text-sm font-semibold rounded-xl transition-all duration-200 text-white shadow-md",
+              (mode === 'categories' || mode === 'sets') && "ring-2 ring-white/30"
             )}
             style={{
               background: 'linear-gradient(135deg, #F9AD87 0%, #F499BE 50%, #9563A1 100%)',
@@ -121,21 +121,6 @@ const MobileOverlayPanel: React.FC<MobileOverlayPanelProps> = ({
             {t('editor.overlays')}
             {mode === 'categories' || mode === 'sets' ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
-          
-          {selectedOverlay && onUpdateOverlay && onDeleteOverlay && (
-            <Button
-              variant={mode === 'editor' ? 'default' : 'outline'}
-              onClick={() => handleToggle('editor')}
-              className={cn(
-                "flex-1 gap-2 h-11 text-sm font-medium rounded-md transition-all duration-200",
-                mode === 'editor' && "shadow-md"
-              )}
-            >
-              <Settings2 className="w-4 h-4" />
-              {t('editor.editor_title')}
-              {mode === 'editor' ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-            </Button>
-          )}
         </div>
 
         {/* Первый слой: Категории */}
@@ -177,7 +162,7 @@ const MobileOverlayPanel: React.FC<MobileOverlayPanelProps> = ({
                       <button
                         key={category.id}
                         onClick={() => handleCategoryClick(category.id)}
-                        className="relative flex items-center justify-center h-20 rounded-xl border border-border/40 hover:brightness-110 active:scale-95 transition-all duration-200 overflow-hidden"
+                        className="relative flex items-center justify-center h-14 rounded-xl border border-border/40 hover:brightness-110 active:scale-95 transition-all duration-200 overflow-hidden"
                         style={previewUrl ? {
                           backgroundImage: `url(${previewUrl})`,
                           backgroundSize: 'cover',
@@ -227,41 +212,12 @@ const MobileOverlayPanel: React.FC<MobileOverlayPanelProps> = ({
             <div className="py-2">
               <OverlaySetGrid
                 sets={currentSets}
-                onAddOverlay={onAddOverlay}
+                onAddOverlay={handleAddOverlay}
               />
             </div>
           </div>
         </div>
 
-        {/* Третий слой: Редактор */}
-        <div 
-          className={cn(
-            "absolute bottom-full left-0 right-0 bg-background rounded-t-2xl border-t border-border transition-all duration-300 ease-out overflow-hidden",
-            mode === 'editor' ? "shadow-[0_-8px_40px_-10px_rgba(0,0,0,0.6)]" : "shadow-none"
-          )}
-          style={{ 
-            height: mode === 'editor' ? getPanelHeight() : '0px',
-            transform: mode === 'editor' ? 'translateY(0)' : 'translateY(20px)',
-            opacity: mode === 'editor' ? 1 : 0,
-            pointerEvents: mode === 'editor' ? 'auto' : 'none',
-            zIndex: mode === 'editor' ? 3 : 0
-          }}
-        >
-          <div className="h-full overflow-y-auto">
-            {mode === 'editor' && selectedOverlay && onUpdateOverlay && onDeleteOverlay && (
-              <div className="p-4">
-                <OverlayEditor
-                  overlay={selectedOverlay}
-                  onUpdate={onUpdateOverlay}
-                  onDelete={(id) => {
-                    onDeleteOverlay(id);
-                    setMode('categories');
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </>
   );

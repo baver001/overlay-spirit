@@ -30,6 +30,12 @@ const LanguageSwitcher: React.FC = () => {
         <DropdownMenuItem onClick={() => changeLanguage('ru')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
           Русский
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => changeLanguage('ja')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
+          日本語
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => changeLanguage('pt')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
+          Português
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

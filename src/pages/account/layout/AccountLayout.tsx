@@ -48,13 +48,13 @@ export const AccountLayout: React.FC = () => {
           {/* Логотип выровнен по сайдбару */}
           <div className="hidden md:flex md:w-64 items-center justify-center px-6 border-r border-border h-full">
             <a href="/" className="flex items-center">
-              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
+              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
             </a>
           </div>
           {/* Мобильный логотип */}
           <div className="flex md:hidden items-center px-4">
             <a href="/" className="flex items-center">
-              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
+              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
             </a>
           </div>
           

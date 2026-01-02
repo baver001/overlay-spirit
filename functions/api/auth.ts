@@ -1,3 +1,7 @@
+/**
+ * DEPRECATED: This file contains custom auth logic that is being replaced by Supabase.
+ * Use /api/verify for Supabase token synchronization.
+ */
 import { nanoid } from 'nanoid'
 
 export interface Env {

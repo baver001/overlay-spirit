@@ -63,8 +63,8 @@ const OverlayCategoryNav: React.FC<OverlayCategoryNavProps> = ({
                 'relative overflow-hidden inline-flex items-center justify-center text-[11px] font-semibold transition-all duration-200 text-center',
                 // Оптические отступы: radius 10px, padding горизонтальный ~10px
                 'rounded-[10px] px-2',
-                // Высота: 36px на desktop
-                'h-9 min-h-9',
+                // Высота: увеличена для десктопа
+                'h-12 min-h-12',
                 // Граница
                 'border',
                 // Состояния hover/active

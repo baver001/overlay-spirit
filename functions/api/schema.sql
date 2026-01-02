@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS overlay_sets (
   stripe_product_id TEXT,
   stripe_price_id TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
+  default_blend_mode TEXT NOT NULL DEFAULT 'screen',
   created_by TEXT REFERENCES users(id),
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

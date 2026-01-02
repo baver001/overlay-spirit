@@ -1,14 +1,20 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Overlay } from '@/lib/types';
-import { FlipHorizontal, FlipVertical, Trash2, RotateCw, Maximize2 } from 'lucide-react';
+import { FlipHorizontal, FlipVertical, X, RotateCw, Maximize2, Trash2, Settings2, Droplets, Type } from 'lucide-react';
+import { BLEND_MODES } from '@/lib/constants';
+import { useTranslation } from 'react-i18next';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 
 interface OverlayTransformFrameProps {
   overlay: Overlay;
   width: number;
   height: number;
   canvasOffset: { x: number; y: number };
+  imageDimensions?: { width: number; height: number } | null;
   onUpdate: (id: string, newProps: Partial<Overlay>) => void;
   onDelete: (id: string) => void;
+  onDeselect: () => void;
 }
 
 type HandleType = 'tl' | 'tr' | 'bl' | 'br' | 'rotate';
@@ -52,9 +58,13 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
   width,
   height,
   canvasOffset,
+  imageDimensions,
   onUpdate,
   onDelete,
+  onDeselect,
 }) => {
+  const { t } = useTranslation();
+  const [showSettings, setShowSettings] = useState(false);
   const startRef = useRef<{ 
     x: number; 
     y: number; 
@@ -117,6 +127,14 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
       
       if (startDistance > 10) {
         let newScale = start.scale * (currentDistance / startDistance);
+        
+        // Умное прилипание масштаба к 1.0 (заполнение одной из сторон) 
+        // или к заполнению всего экрана (Cover)
+        const snapThreshold = 0.03;
+        if (Math.abs(newScale - 1) < snapThreshold) {
+          newScale = 1;
+        }
+
         newScale = Math.max(0.1, Math.min(5, newScale));
         
         // Вычисляем новую позицию центра, чтобы anchor остался на месте
@@ -245,8 +263,9 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
 
   // Позиции кнопок внизу (по центру)
   const bottomY = frameHeight / 2 + BUTTON_SIZE / 2 + 10;
-  const totalButtonsWidth = BUTTON_SIZE * 2 + BUTTON_GAP;
+  const totalButtonsWidth = BUTTON_SIZE * 3 + BUTTON_GAP * 2; // Увеличили для 3 кнопок
   const flipHPos = { x: -totalButtonsWidth / 2 + BUTTON_SIZE / 2, y: bottomY };
+  const settingsBtnPos = { x: 0, y: bottomY }; // Центральная кнопка
   const flipVPos = { x: totalButtonsWidth / 2 - BUTTON_SIZE / 2, y: bottomY };
   
   // Кнопка удаления — нижний левый угол
@@ -257,6 +276,18 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
 
   // Общие стили для кнопок
   const buttonBaseStyle = "w-full h-full rounded-md flex items-center justify-center transition-colors";
+
+  // Определение курсора в зависимости от поворота
+  const getCursor = (key: string) => {
+    const rotation = overlay.rotation % 180;
+    const isSwapped = (rotation > 45 && rotation < 135);
+    
+    if (key === 'tl' || key === 'br') {
+      return isSwapped ? 'nesw-resize' : 'nwse-resize';
+    } else {
+      return isSwapped ? 'nwse-resize' : 'nesw-resize';
+    }
+  };
 
   return (
     <div
@@ -301,7 +332,7 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
                 fill="transparent"
                 className="pointer-events-auto"
                 style={{ 
-                  cursor: key === 'tl' || key === 'br' ? 'nwse-resize' : 'nesw-resize',
+                  cursor: getCursor(key),
                   touchAction: 'none',
                 }}
                 onMouseDown={(e) => handleMouseDown(e, key as HandleType)}
@@ -356,8 +387,33 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
                   ? 'bg-blue-500 border-blue-400 text-white' 
                   : 'bg-slate-900 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300'
               }`}
+              title={t('editor.flip_h')}
             >
               <FlipHorizontal className="w-4 h-4" />
+            </button>
+          </foreignObject>
+
+          {/* Кнопка настроек (Blend & Opacity) */}
+          <foreignObject
+            x={settingsBtnPos.x - BUTTON_SIZE / 2}
+            y={settingsBtnPos.y - BUTTON_SIZE / 2}
+            width={BUTTON_SIZE}
+            height={BUTTON_SIZE}
+            className="pointer-events-auto"
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSettings(!showSettings);
+              }}
+              className={`${buttonBaseStyle} border-2 ${
+                showSettings 
+                  ? 'bg-blue-500 border-blue-400 text-white' 
+                  : 'bg-slate-900 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300'
+              }`}
+              title={t('editor.settings')}
+            >
+              <Settings2 className="w-4 h-4" />
             </button>
           </foreignObject>
 
@@ -379,12 +435,13 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
                   ? 'bg-blue-500 border-blue-400 text-white' 
                   : 'bg-slate-900 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300'
               }`}
+              title={t('editor.flip_v')}
             >
               <FlipVertical className="w-4 h-4" />
             </button>
           </foreignObject>
 
-          {/* Кнопка удаления */}
+          {/* Кнопка удаления (Красный крестик) */}
           <foreignObject
             x={deletePos.x - BUTTON_SIZE / 2}
             y={deletePos.y - BUTTON_SIZE / 2}
@@ -397,9 +454,10 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
                 e.stopPropagation();
                 onDelete(overlay.id);
               }}
-              className={`${buttonBaseStyle} bg-slate-900 border-2 border-red-400 text-red-400 hover:bg-red-950 hover:text-red-300`}
+              className={`${buttonBaseStyle} bg-slate-900 border-2 border-red-500 text-red-500 hover:bg-red-950 hover:text-red-400`}
+              title="Delete"
             >
-              <Trash2 className="w-4 h-4" />
+              <X className="w-4 h-4" />
             </button>
           </foreignObject>
 
@@ -414,10 +472,26 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // Сбрасываем scale, rotation, позицию - центрируем и подгоняем под размер
+                
+                // Пропорции
+                const isImgVertical = imageDimensions && imageDimensions.height > imageDimensions.width;
+                const overlayAspectRatio = width / height;
+                const isOverlayVertical = overlayAspectRatio < 1;
+                
+                // Если ориентации не совпадают - поворачиваем на 90 градусов
+                const shouldRotate = (isImgVertical && !isOverlayVertical) || (!isImgVertical && isOverlayVertical);
+                const targetRotation = shouldRotate ? 90 : 0;
+                
+                // Вычисляем масштаб для идеального заполнения (Fit/Cover)
+                let targetScale = 1;
+                if (shouldRotate) {
+                  // Если поворачиваем, то ширина становится высотой и наоборот
+                  targetScale = isImgVertical ? (1 / overlayAspectRatio) : overlayAspectRatio;
+                }
+
                 onUpdate(overlay.id, { 
-                  scale: 1, 
-                  rotation: 0, 
+                  scale: targetScale, 
+                  rotation: targetRotation, 
                   x: 0, 
                   y: 0,
                   flipH: false,
@@ -430,6 +504,75 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
               <Maximize2 className="w-4 h-4" />
             </button>
           </foreignObject>
+
+          {/* Панель настроек (Blend Mode & Opacity) */}
+          {showSettings && (
+            <foreignObject
+              x={-110} // Центрируем панель (220/2)
+              y={-frameHeight / 2 - ROTATE_OFFSET - 85}
+              width={220}
+              height={95}
+              className="pointer-events-auto"
+            >
+              <div className="bg-slate-900/90 backdrop-blur-md border-2 border-blue-400/50 rounded-xl p-3 shadow-2xl space-y-3">
+                {/* Blend Mode */}
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-500/20 p-1.5 rounded-lg">
+                    <Settings2 className="w-3.5 h-3.5 text-blue-400" />
+                  </div>
+                  <Select
+                    value={overlay.blendMode}
+                    onValueChange={(value: Overlay['blendMode']) => onUpdate(overlay.id, { blendMode: value })}
+                  >
+                    <SelectTrigger 
+                      className="h-8 text-[11px] bg-slate-800/50 border-slate-700 text-white rounded-lg flex-1"
+                      onWheel={(e) => {
+                        e.preventDefault();
+                        const idx = BLEND_MODES.findIndex(m => m.value === overlay.blendMode);
+                        if (idx < 0) return;
+                        if (e.deltaY > 0) {
+                          const next = BLEND_MODES[(idx + 1) % BLEND_MODES.length];
+                          onUpdate(overlay.id, { blendMode: next.value });
+                        } else if (e.deltaY < 0) {
+                          const prev = BLEND_MODES[(idx - 1 + BLEND_MODES.length) % BLEND_MODES.length];
+                          onUpdate(overlay.id, { blendMode: prev.value });
+                        }
+                      }}
+                    >
+                      <SelectValue placeholder="Blend mode" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                      {BLEND_MODES.map((mode) => (
+                        <SelectItem key={mode.value} value={mode.value} className="text-[11px] focus:bg-blue-500 focus:text-white">
+                          {t(`blend_modes.${mode.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Opacity */}
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-500/20 p-1.5 rounded-lg">
+                    <Droplets className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 px-1">
+                    <Slider
+                      value={[overlay.opacity]}
+                      onValueChange={([value]) => onUpdate(overlay.id, { opacity: value })}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400 w-7 text-right">
+                    {Math.round(overlay.opacity * 100)}%
+                  </span>
+                </div>
+              </div>
+            </foreignObject>
+          )}
         </g>
       </svg>
     </div>

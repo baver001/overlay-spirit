@@ -54,29 +54,33 @@ const Index: React.FC = () => {
     setSelectedOverlayId(null);
   }, [image]);
 
-  const handleAddOverlay = useCallback((type: 'css' | 'image', value: string) => {
+  const handleAddOverlay = useCallback((type: 'css' | 'image', value: string, blendMode?: string) => {
     // Преобразуем ключ из БД в полный URL для изображений
     let overlayValue = value;
     if (type === 'image' && value.startsWith('overlays/')) {
       overlayValue = `/api/files/${value}`;
     }
     
+    // Если изображение пользователя вертикальное, устанавливаем поворот 90 градусов по умолчанию
+    const isVertical = imageDimensions && imageDimensions.height > imageDimensions.width;
+    const defaultRotation = isVertical ? 90 : OVERLAY_DEFAULTS.ROTATION;
+    
     const newOverlay: Overlay = {
       id: uuidv4(),
       type,
       value: overlayValue,
-      blendMode: OVERLAY_DEFAULTS.BLEND_MODE,
+      blendMode: (blendMode as any) || OVERLAY_DEFAULTS.BLEND_MODE,
       opacity: OVERLAY_DEFAULTS.OPACITY,
       x: OVERLAY_DEFAULTS.POSITION.x,
       y: OVERLAY_DEFAULTS.POSITION.y,
-      rotation: OVERLAY_DEFAULTS.ROTATION,
+      rotation: defaultRotation,
       scale: OVERLAY_DEFAULTS.SCALE,
       flipH: OVERLAY_DEFAULTS.FLIP.horizontal,
       flipV: OVERLAY_DEFAULTS.FLIP.vertical,
     };
     setOverlays(prev => [...prev, newOverlay]);
     setSelectedOverlayId(newOverlay.id);
-  }, []);
+  }, [imageDimensions]);
   
   const handleUpdateOverlay = useCallback((id: string, newProps: Partial<Overlay>) => {
     setOverlays(prev => prev.map(o => o.id === id ? { ...o, ...newProps } : o));

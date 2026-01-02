@@ -18,6 +18,7 @@ export interface OverlaySetSummary {
   isPurchased?: boolean;
   priceCents?: number | null;
   discountPriceCents?: number | null;
+  defaultBlendMode?: string;
   updatedAt: number;
   createdAt: number;
   previewOverlays: OverlaySummary[];

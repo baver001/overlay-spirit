@@ -1,9 +1,9 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { PlusCircle, Pencil, Trash2, Upload, X } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Upload, X, ChevronLeft, ChevronRight, ArrowUpDown, Search } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -17,16 +17,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/use-toast";
 import { fetchWithAuth } from "@/lib/api";
 import { createThumbnail, blobToFile } from "@/lib/thumbnail";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface SetItem {
   id: string;
   title: string;
   category_id: string | null;
+  category_name: string | null;
   is_paid: number;
   price_cents: number | null;
   discount_price_cents: number | null;
   is_active: number;
+  default_blend_mode: string;
   updated_at: number;
+  created_at: number;
+  overlay_count: number;
 }
 
 interface Category {
@@ -43,6 +56,7 @@ interface SetFormValues {
   price_dollars: number;
   discount_price_dollars: number;
   is_active: boolean;
+  default_blend_mode: string;
 }
 
 interface UploadedImage {
@@ -65,6 +79,7 @@ const EMPTY_FORM: SetFormValues = {
   price_dollars: 0,
   discount_price_dollars: 0,
   is_active: true,
+  default_blend_mode: "screen",
 };
 
 export const SetsPage: React.FC = () => {
@@ -73,17 +88,42 @@ export const SetsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = React.useState<SetItem | null>(null);
   const [uploadedImages, setUploadedImages] = React.useState<UploadedImage[]>([]);
   const [uploadProgress, setUploadProgress] = React.useState<UploadProgress | null>(null);
+  const [page, setPage] = React.useState(1);
+  const [search, setSearch] = React.useState("");
+  const [sortBy, setSortBy] = React.useState("updated_at");
+  const [sortOrder, setSortOrder] = React.useState<"ASC" | "DESC">("DESC");
+  const pageSize = 20;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const setsQuery = useQuery<{ items: SetItem[]; meta: { total: number } }>({
-    queryKey: ["admin", "sets"],
+    queryKey: ["admin", "sets", page, search, sortBy, sortOrder],
     queryFn: async () => {
-      const res = await fetchWithAuth(`/api/admin?list=sets&limit=200`, { credentials: "include" });
+      const offset = (page - 1) * pageSize;
+      const params = new URLSearchParams({
+        list: "sets",
+        limit: pageSize.toString(),
+        offset: offset.toString(),
+        sort_by: sortBy,
+        order: sortOrder,
+      });
+      if (search) params.append("search", search);
+      
+      const res = await fetchWithAuth(`/api/admin?${params.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load sets");
       return res.json();
     },
     staleTime: 60_000,
   });
+
+  const toggleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
+    } else {
+      setSortBy(field);
+      setSortOrder("DESC");
+    }
+    setPage(1); // Reset to first page on sort
+  };
 
   const categoriesQuery = useQuery<{ items: Category[] }>({
     queryKey: ["admin", "categories", "list"],
@@ -174,6 +214,7 @@ export const SetsPage: React.FC = () => {
         category_id: values.category_id && values.category_id.trim() !== "" ? values.category_id : null,
         is_paid: values.is_paid,
         is_active: values.is_active,
+        default_blend_mode: values.default_blend_mode,
         overlays: values.overlay_keys.map((key, index) => ({
           kind: "image" as const,
           value: key,
@@ -286,6 +327,7 @@ export const SetsPage: React.FC = () => {
       price_dollars: setItem.price_cents ? setItem.price_cents / 100 : 0,
       discount_price_dollars: setItem.discount_price_cents ? setItem.discount_price_cents / 100 : 0,
       is_active: Boolean(setItem.is_active),
+      default_blend_mode: setItem.default_blend_mode || "screen",
     });
 
     // Load existing overlays using admin API
@@ -384,8 +426,24 @@ export const SetsPage: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Set Catalog</CardTitle>
-          <CardDescription>All overlay sets in the system</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Set Catalog</CardTitle>
+              <CardDescription>All overlay sets in the system</CardDescription>
+            </div>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by title..."
+                className="pl-8"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {setsQuery.isLoading ? (
@@ -398,11 +456,31 @@ export const SetsPage: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead className="hidden md:table-cell">Type</TableHead>
+                  <TableHead>
+                    <Button variant="ghost" size="sm" onClick={() => toggleSort("title")} className="-ml-3 h-8 gap-1">
+                      Title
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <Button variant="ghost" size="sm" onClick={() => toggleSort("category_name")} className="-ml-3 h-8 gap-1">
+                      Category
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead className="hidden md:table-cell">Price</TableHead>
-                  <TableHead className="hidden lg:table-cell">Status</TableHead>
-                  <TableHead className="hidden xl:table-cell">Updated</TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <Button variant="ghost" size="sm" onClick={() => toggleSort("overlay_count")} className="-ml-3 h-8 gap-1">
+                      Status
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    <Button variant="ghost" size="sm" onClick={() => toggleSort("updated_at")} className="-ml-3 h-8 gap-1">
+                      Updated
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead className="w-[140px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -410,9 +488,7 @@ export const SetsPage: React.FC = () => {
                 {setsQuery.data?.items.map((set) => (
                   <TableRow key={set.id}>
                     <TableCell className="font-medium">{set.title}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {set.is_paid ? <Badge variant="default">Paid</Badge> : <Badge variant="secondary">Free</Badge>}
-                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground">{set.category_name || "—"}</TableCell>
                     <TableCell className="hidden md:table-cell">
                       {set.is_paid ? (
                         <div className="flex items-center gap-2">
@@ -429,9 +505,13 @@ export const SetsPage: React.FC = () => {
                       )}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {set.is_active ? <Badge variant="outline">Active</Badge> : <Badge variant="destructive">Hidden</Badge>}
+                      {set.overlay_count > 0 ? (
+                        <Badge className="bg-[#40E0D0] hover:bg-[#40E0D0]/80 text-black border-none">Active</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-500 hover:bg-gray-100">Draft</Badge>
+                      )}
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell text-muted-foreground">{new Date(set.updated_at).toLocaleString()}</TableCell>
+                    <TableCell className="hidden xl:table-cell text-muted-foreground">{new Date(set.updated_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => openEdit(set)}>
@@ -455,6 +535,76 @@ export const SetsPage: React.FC = () => {
             </Table>
           )}
         </CardContent>
+        {!setsQuery.isLoading && setsQuery.data && setsQuery.data.meta.total > pageSize && (
+          <CardFooter className="flex items-center justify-between border-t py-4">
+            <div className="text-sm text-muted-foreground">
+              Показано <strong>{(page - 1) * pageSize + 1}</strong> –{" "}
+              <strong>{Math.min(page * pageSize, setsQuery.data.meta.total)}</strong> из{" "}
+              <strong>{setsQuery.data.meta.total}</strong> наборов
+            </div>
+            <Pagination className="mx-0 w-auto">
+              <PaginationContent>
+                <PaginationItem>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 pl-2.5"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>Назад</span>
+                  </Button>
+                </PaginationItem>
+                
+                {(() => {
+                  const totalPages = Math.ceil(setsQuery.data!.meta.total / pageSize);
+                  const items = [];
+                  
+                  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                    if (
+                      pageNum === 1 ||
+                      pageNum === totalPages ||
+                      (pageNum >= page - 1 && pageNum <= page + 1)
+                    ) {
+                      items.push(
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            isActive={page === pageNum}
+                            onClick={() => setPage(pageNum)}
+                            className="cursor-pointer"
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    } else if (pageNum === page - 2 || pageNum === page + 2) {
+                      items.push(
+                        <PaginationItem key={pageNum}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+                  }
+                  return items;
+                })()}
+
+                <PaginationItem>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 pr-2.5"
+                    onClick={() => setPage((p) => Math.min(Math.ceil(setsQuery.data!.meta.total / pageSize), p + 1))}
+                    disabled={page >= Math.ceil(setsQuery.data.meta.total / pageSize)}
+                  >
+                    <span>Вперед</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </CardFooter>
+        )}
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -528,6 +678,33 @@ export const SetsPage: React.FC = () => {
                   <Switch checked={form.watch("is_active") ?? true} onCheckedChange={(checked) => form.setValue("is_active", checked)} />
                   Active
                 </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="blend-mode">Default Blend Mode</Label>
+                <Select value={form.watch("default_blend_mode") || "screen"} onValueChange={(val) => form.setValue("default_blend_mode", val)}>
+                  <SelectTrigger id="blend-mode">
+                    <SelectValue placeholder="Select blend mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="screen">Screen</SelectItem>
+                    <SelectItem value="multiply">Multiply</SelectItem>
+                    <SelectItem value="overlay">Overlay</SelectItem>
+                    <SelectItem value="darken">Darken</SelectItem>
+                    <SelectItem value="lighten">Lighten</SelectItem>
+                    <SelectItem value="color-dodge">Color Dodge</SelectItem>
+                    <SelectItem value="color-burn">Color Burn</SelectItem>
+                    <SelectItem value="hard-light">Hard Light</SelectItem>
+                    <SelectItem value="soft-light">Soft Light</SelectItem>
+                    <SelectItem value="difference">Difference</SelectItem>
+                    <SelectItem value="exclusion">Exclusion</SelectItem>
+                    <SelectItem value="hue">Hue</SelectItem>
+                    <SelectItem value="saturation">Saturation</SelectItem>
+                    <SelectItem value="color">Color</SelectItem>
+                    <SelectItem value="luminosity">Luminosity</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

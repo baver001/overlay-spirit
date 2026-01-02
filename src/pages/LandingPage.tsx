@@ -494,7 +494,7 @@ const LandingPage: React.FC = () => {
             <div className="flex items-center gap-6 text-sm text-zinc-400">
               <Link to="/privacy" className="hover:text-white transition-colors">{t('common.privacy')}</Link>
               <Link to="/terms" className="hover:text-white transition-colors">{t('common.terms')}</Link>
-              <Link to="/refunds" className="hover:text-white transition-colors">Refunds</Link>
+              <Link to="/refunds" className="hover:text-white transition-colors">{t('common.refunds')}</Link>
               <a href="mailto:support@loverlay.com" className="hover:text-white transition-colors">{t('common.support')}</a>
             </div>
             <p className="text-sm text-zinc-500">

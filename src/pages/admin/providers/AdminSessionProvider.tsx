@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { isSuperAdmin } from "@/lib/auth";
 
 interface AdminUser {
   id: string;
@@ -38,7 +39,7 @@ export const AdminSessionProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       if (role !== 'admin') {
          // Allow explicit superuser by email
-         if (session.user.email === 'pavel@pokataev.com') {
+         if (isSuperAdmin(session.user.email)) {
              // Continue as admin
          } else {
              setError("Недостаточно прав для доступа к админке");

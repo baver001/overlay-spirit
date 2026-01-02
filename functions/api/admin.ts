@@ -2,12 +2,13 @@ import { nanoid } from 'nanoid'
 import { z } from 'zod'
 // @ts-ignore - @cf-wasm/photon is designed for Cloudflare Workers runtime
 import { PhotonImage, SamplingFilter, resize } from '@cf-wasm/photon'
-import { verifySupabaseToken } from './verify'
+import { verifySupabaseToken, syncUser } from './verify'
 
 export interface Env {
   DB: D1Database;
   R2?: R2Bucket;
   SUPABASE_JWT_SECRET?: string;
+  ADMIN_EMAIL?: string;
 }
 
 const JSON_HEADERS = { 'content-type': 'application/json' } as const;
@@ -90,6 +91,7 @@ const setBaseSchema = z.object({
   stripe_product_id: z.union([z.string().trim().max(255), z.null()]).optional(),
   stripe_price_id: z.union([z.string().trim().max(255), z.null()]).optional(),
   is_active: z.boolean().optional(),
+  default_blend_mode: z.string().trim().max(50).optional(),
   overlays: z
     .array(
       z.object({
@@ -204,52 +206,17 @@ async function requireAdmin(ctx: EventContext<Env, any, any>) {
   const authHeader = ctx.request.headers.get('Authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    const secret = ctx.env.SUPABASE_JWT_SECRET;
-    if (!secret) {
-        console.error('SUPABASE_JWT_SECRET is not set');
-        throw json({ error: 'Server configuration error: SUPABASE_JWT_SECRET is missing' }, { status: 500 });
-    }
     
     try {
-        const payload = await verifySupabaseToken(token, secret);
-        const email = payload.email as string;
-        const role = (payload.app_metadata?.role as string) || (payload.user_metadata?.role as string);
+        const user = await syncUser(ctx, token);
 
-        // Check if user exists in D1 and sync if needed
-        const supabaseUserId = payload.sub as string;
-        
-        // 1. Try to find by primary ID (if new user) OR provider_id (if migrated)
-        let d1User = await ctx.env.DB.prepare('SELECT id, role FROM users WHERE id = ? OR provider_id = ?')
-            .bind(supabaseUserId, supabaseUserId)
-            .first<{id: string, role: string}>();
-        
-        if (!d1User) {
-            // Check by email for migration from old system
-            const existingByEmail = await ctx.env.DB.prepare('SELECT id, role FROM users WHERE email = ?').bind(email).first<{id: string, role: string}>();
-            
-            if (existingByEmail) {
-                // Link existing user to Supabase ID via provider_id
-                console.log(`Linking user ${email} (ID: ${existingByEmail.id}) to Supabase ID ${supabaseUserId}`);
-                await ctx.env.DB.prepare('UPDATE users SET provider_id = ?, provider = ?, updated_at = ? WHERE id = ?')
-                    .bind(supabaseUserId, 'supabase', Date.now(), existingByEmail.id)
-                    .run();
-                d1User = { id: existingByEmail.id, role: existingByEmail.role };
-            } else {
-                // Create new user in D1, using Supabase ID as primary ID
-                console.log(`Creating new D1 user for ${email} (${supabaseUserId})`);
-                await ctx.env.DB.prepare('INSERT INTO users (id, email, role, provider, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-                    .bind(supabaseUserId, email, 'customer', 'supabase', supabaseUserId, Date.now(), Date.now())
-                    .run();
-                d1User = { id: supabaseUserId, role: 'customer' };
-            }
-        }
-
-        // Allow access if they are an admin in D1 OR have superadmin email
-        if (d1User.role === 'admin' || email === 'pavel@pokataev.com') {
-             return { id: d1User.id };
+        // Allow access if they are an admin in D1 OR have superadmin email from env
+        const isAdminEmail = ctx.env.ADMIN_EMAIL && user.email.toLowerCase() === ctx.env.ADMIN_EMAIL.toLowerCase();
+        if (user.role === 'admin' || isAdminEmail) {
+             return { id: user.id };
         }
         
-        throw new Error(`Not an admin. Role: ${d1User.role}, Email: ${email}`);
+        throw new Error(`Not an admin. Role: ${user.role}, Email: ${user.email}`);
     } catch (e: any) {
         console.error('Auth verification failed', e);
         if (e.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
@@ -363,31 +330,48 @@ async function listSets(ctx: EventContext<Env, any, any>, url: URL) {
 
   const categoryId = url.searchParams.get('category_id');
   if (categoryId) {
-    where.push('category_id = ?');
+    where.push('s.category_id = ?');
     binds.push(categoryId);
   }
 
   const isActive = parseOptionalBoolean(url.searchParams.get('is_active'));
   if (isActive !== undefined) {
-    where.push('is_active = ?');
+    where.push('s.is_active = ?');
     binds.push(isActive ? 1 : 0);
   }
 
   const isPaid = parseOptionalBoolean(url.searchParams.get('is_paid'));
   if (isPaid !== undefined) {
-    where.push('is_paid = ?');
+    where.push('s.is_paid = ?');
     binds.push(isPaid ? 1 : 0);
   }
 
   const search = url.searchParams.get('search');
   if (search) {
-    where.push('(LOWER(title) LIKE ? OR LOWER(description) LIKE ?)');
+    where.push('(LOWER(s.title) LIKE ? OR LOWER(s.description) LIKE ?)');
     const token = `%${search.toLowerCase()}%`;
     binds.push(token, token);
   }
 
-  const baseQuery = `FROM overlay_sets${where.length ? ` WHERE ${where.join(' AND ')}` : ''}`;
-  const dataQuery = `SELECT * ${baseQuery} ORDER BY updated_at DESC LIMIT ? OFFSET ?`;
+  const sortBy = url.searchParams.get('sort_by') || 'updated_at';
+  const order = url.searchParams.get('order') || 'DESC';
+  const allowedSortFields = ['title', 'created_at', 'updated_at', 'price_cents', 'category_name', 'overlay_count'];
+  
+  let finalSortBy = '';
+  if (sortBy === 'category_name') {
+    finalSortBy = 'category_name';
+  } else if (sortBy === 'overlay_count') {
+    finalSortBy = 'overlay_count';
+  } else if (allowedSortFields.includes(sortBy)) {
+    finalSortBy = `s.${sortBy}`;
+  } else {
+    finalSortBy = 's.updated_at';
+  }
+  
+  const finalOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+  const baseQuery = `FROM overlay_sets s LEFT JOIN categories c ON s.category_id = c.id${where.length ? ` WHERE ${where.join(' AND ')}` : ''}`;
+  const dataQuery = `SELECT s.*, c.name as category_name, (SELECT COUNT(*) FROM overlays WHERE set_id = s.id) as overlay_count ${baseQuery} ORDER BY ${finalSortBy} ${finalOrder} LIMIT ? OFFSET ?`;
   const countQuery = `SELECT COUNT(*) AS count ${baseQuery}`;
 
   const dataStmt = ctx.env.DB.prepare(dataQuery).bind(...binds, limit, offset);
@@ -424,12 +408,20 @@ async function listStats(ctx: EventContext<Env, any, any>, url: URL) {
   };
   const since = rangeMap[range];
 
-  const [categories, sets, overlays, purchases, newUsers, activeCustomers] = await Promise.all([
+  const [categories, setsStats, overlays, purchases, newUsers, activeCustomers] = await Promise.all([
     ctx.env.DB.prepare('SELECT COUNT(*) AS count FROM categories').first<{ count: number }>(),
-    ctx.env.DB.prepare('SELECT COUNT(*) AS count, SUM(CASE WHEN is_paid = 1 THEN 1 ELSE 0 END) AS paid_count, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_count FROM overlay_sets').first<{
-      count: number;
-      paid_count: number | null;
+    ctx.env.DB.prepare(`
+      SELECT 
+        COUNT(*) AS total_count,
+        SUM(CASE WHEN (SELECT COUNT(*) FROM overlays WHERE set_id = overlay_sets.id) > 0 THEN 1 ELSE 0 END) AS active_count,
+        SUM(CASE WHEN (SELECT COUNT(*) FROM overlays WHERE set_id = overlay_sets.id) = 0 THEN 1 ELSE 0 END) AS draft_count,
+        SUM(CASE WHEN is_paid = 1 THEN 1 ELSE 0 END) AS paid_count
+      FROM overlay_sets
+    `).first<{
+      total_count: number;
       active_count: number | null;
+      draft_count: number | null;
+      paid_count: number | null;
     }>(),
     ctx.env.DB.prepare('SELECT COUNT(*) AS count FROM overlays').first<{ count: number }>(),
     ctx.env.DB.prepare('SELECT COUNT(*) AS count, SUM(price_cents) AS revenue_cents FROM purchases WHERE status = ? AND created_at >= ?')
@@ -444,9 +436,10 @@ async function listStats(ctx: EventContext<Env, any, any>, url: URL) {
   return json({
     stats: {
       categories: categories?.count ?? 0,
-      sets: sets?.count ?? 0,
-      paid_sets: sets?.paid_count ?? 0,
-      active_sets: sets?.active_count ?? 0,
+      sets: setsStats?.total_count ?? 0,
+      paid_sets: setsStats?.paid_count ?? 0,
+      active_sets: setsStats?.active_count ?? 0,
+      draft_sets: setsStats?.draft_count ?? 0,
       total_purchases: purchases?.count ?? 0,
       revenue_cents: purchases?.revenue_cents ?? 0,
       new_users: newUsers?.count ?? 0,
@@ -598,12 +591,13 @@ async function setCreate(ctx: EventContext<Env, any, any>, createdBy: string) {
   const now = Date.now();
   const isPaid = toBool(body.is_paid, false);
   const isActive = toBool(body.is_active, true);
+  const defaultBlendMode = body.default_blend_mode || 'screen';
   const price = isPaid ? body.price_cents ?? 0 : null;
   const discountPrice = isPaid && body.discount_price_cents ? body.discount_price_cents : null;
 
   await ctx.env.DB
-    .prepare(`INSERT INTO overlay_sets (id, title, category_id, description, cover_image_url, cover_key, is_paid, price_cents, discount_price_cents, stripe_product_id, stripe_price_id, is_active, created_by, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .prepare(`INSERT INTO overlay_sets (id, title, category_id, description, cover_image_url, cover_key, is_paid, price_cents, discount_price_cents, stripe_product_id, stripe_price_id, is_active, default_blend_mode, created_by, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(
       id,
       body.title,
@@ -617,6 +611,7 @@ async function setCreate(ctx: EventContext<Env, any, any>, createdBy: string) {
       body.stripe_product_id ?? null,
       body.stripe_price_id ?? null,
       isActive ? 1 : 0,
+      defaultBlendMode,
       createdBy,
       now,
       now,
@@ -655,11 +650,12 @@ async function setUpdate(ctx: EventContext<Env, any, any>, adminId: string) {
   const now = Date.now();
   const isPaid = toBool(body.is_paid, false);
   const isActive = toBool(body.is_active, true);
+  const defaultBlendMode = body.default_blend_mode || 'screen';
   const price = isPaid ? body.price_cents ?? 0 : null;
   const discountPrice = isPaid && body.discount_price_cents ? body.discount_price_cents : null;
 
   await ctx.env.DB
-    .prepare(`UPDATE overlay_sets SET title = ?, category_id = ?, description = ?, cover_image_url = ?, cover_key = ?, is_paid = ?, price_cents = ?, discount_price_cents = ?, stripe_product_id = ?, stripe_price_id = ?, is_active = ?, updated_at = ? WHERE id = ?`)
+    .prepare(`UPDATE overlay_sets SET title = ?, category_id = ?, description = ?, cover_image_url = ?, cover_key = ?, is_paid = ?, price_cents = ?, discount_price_cents = ?, stripe_product_id = ?, stripe_price_id = ?, is_active = ?, default_blend_mode = ?, updated_at = ? WHERE id = ?`)
     .bind(
       body.title,
       body.category_id ?? null,
@@ -672,6 +668,7 @@ async function setUpdate(ctx: EventContext<Env, any, any>, adminId: string) {
       body.stripe_product_id ?? null,
       body.stripe_price_id ?? null,
       isActive ? 1 : 0,
+      defaultBlendMode,
       now,
       body.id,
     )

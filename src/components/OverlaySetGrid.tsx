@@ -10,7 +10,7 @@ const PLACEHOLDER_COUNT = 25;
 
 interface OverlaySetGridProps {
   sets: OverlaySetSummary[];
-  onAddOverlay: (type: 'css' | 'image', value: string) => void;
+  onAddOverlay: (type: 'css' | 'image', value: string, blendMode?: string) => void;
 }
 
 // Бейдж FREE/PREMIUM — оптические отступы (padding ≈ высота текста / 2)
@@ -55,10 +55,11 @@ const PlaceholderItem: React.FC<{ index: number }> = ({ index }) => {
 // Первые 3 элемента (оверлеи или заглушки)
 const FirstRowItems: React.FC<{
   overlays: OverlaySetSummary['previewOverlays'];
-  onAddOverlay: (type: 'css' | 'image', value: string) => void;
+  onAddOverlay: (type: 'css' | 'image', value: string, blendMode?: string) => void;
   isPaid: boolean;
   isPurchased?: boolean;
-}> = ({ overlays, onAddOverlay, isPaid, isPurchased }) => {
+  defaultBlendMode?: string;
+}> = ({ overlays, onAddOverlay, isPaid, isPurchased, defaultBlendMode }) => {
   const { t } = useTranslation();
   const firstThree = overlays?.slice(0, 3) || [];
   
@@ -90,7 +91,7 @@ const FirstRowItems: React.FC<{
             key={overlay.id}
             onClick={(e) => {
               e.stopPropagation();
-              if (isAccessible) onAddOverlay(overlay.kind, overlay.value);
+              if (isAccessible) onAddOverlay(overlay.kind, overlay.value, defaultBlendMode);
             }}
             className={`relative overflow-hidden rounded-[6px] transition-all duration-200 ${
               isAccessible 
@@ -179,6 +180,7 @@ const OverlaySetGrid: React.FC<OverlaySetGridProps> = ({ sets, onAddOverlay }) =
                   onAddOverlay={onAddOverlay}
                   isPaid={set.isPaid}
                   isPurchased={set.isPurchased}
+                  defaultBlendMode={set.defaultBlendMode}
                 />
               </div>
               
@@ -210,6 +212,7 @@ const OverlaySetGrid: React.FC<OverlaySetGridProps> = ({ sets, onAddOverlay }) =
                       isPurchased={set.isPurchased}
                       startIndex={3}
                       totalPlaceholders={PLACEHOLDER_COUNT - 3}
+                      defaultBlendMode={set.defaultBlendMode}
                     />
                   </AccordionContent>
                 </>
@@ -304,11 +307,12 @@ const PurchaseButton: React.FC<PurchaseButtonProps> = ({ setId, priceCents, disc
 
 interface ExpandedOverlaysGridProps {
   overlays: OverlaySetSummary['previewOverlays'];
-  onAddOverlay: (type: 'css' | 'image', value: string) => void;
+  onAddOverlay: (type: 'css' | 'image', value: string, blendMode?: string) => void;
   isPaid: boolean;
   isPurchased?: boolean;
   startIndex?: number;
   totalPlaceholders: number;
+  defaultBlendMode?: string;
 }
 
 const ExpandedOverlaysGrid: React.FC<ExpandedOverlaysGridProps> = ({ 
@@ -317,7 +321,8 @@ const ExpandedOverlaysGrid: React.FC<ExpandedOverlaysGridProps> = ({
   isPaid, 
   isPurchased,
   startIndex = 0,
-  totalPlaceholders
+  totalPlaceholders,
+  defaultBlendMode
 }) => {
   const [loadedImages, setLoadedImages] = React.useState<Set<string>>(new Set());
   const { t } = useTranslation();
@@ -360,7 +365,7 @@ const ExpandedOverlaysGrid: React.FC<ExpandedOverlaysGridProps> = ({
         return (
           <button
             key={overlay.id}
-            onClick={() => isAccessible && onAddOverlay(overlay.kind, overlay.value)}
+            onClick={() => isAccessible && onAddOverlay(overlay.kind, overlay.value, defaultBlendMode)}
             className={`w-full relative overflow-hidden rounded-[6px] transition-all duration-200 ${
               isAccessible 
                 ? 'hover:ring-2 hover:ring-primary/50 hover:scale-[1.02] cursor-pointer active:scale-[0.98]' 

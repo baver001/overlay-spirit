@@ -121,7 +121,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
     } catch (error: any) {
       toast({ 
         title: t('common.error'), 
-        description: error.message || 'Что-то пошло не так',
+        description: error.message || t('common.something_went_wrong'),
         variant: 'destructive' 
       });
     } finally {
@@ -144,7 +144,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
         if (error) throw error;
     } catch (error: any) {
          toast({ 
-            title: 'Google Auth Error', 
+            title: t('common.google_auth_error'), 
             description: error.message,
             variant: 'destructive'
           });
@@ -162,7 +162,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
         if (error) throw error;
     } catch (error: any) {
     toast({ 
-            title: 'Apple Auth Error', 
+            title: t('common.apple_auth_error'), 
             description: error.message,
             variant: 'destructive'
     });

@@ -2,26 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-
-const SUPERUSER_EMAIL = 'pavel@pokataev.com';
-
-declare global {
-  interface Window {
-    __BUILD_INFO__?: {
-      version: string;
-      buildDate: string;
-    }
-  }
-}
-
-interface FooterProps {
-  className?: string;
-}
+import { isSuperAdmin } from '@/lib/auth';
 
 const Footer: React.FC<FooterProps> = ({ className }) => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const isSuperuser = user?.email === SUPERUSER_EMAIL;
+  const isSuperuser = isSuperAdmin(user?.email);
   
   const buildInfo = window.__BUILD_INFO__ || {
     version: 'dev',
@@ -31,7 +17,15 @@ const Footer: React.FC<FooterProps> = ({ className }) => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return new Intl.DateTimeFormat(i18n.language === 'ru' ? 'ru-RU' : 'en-US', {
+      const locales: Record<string, string> = {
+        'ru': 'ru-RU',
+        'ja': 'ja-JP',
+        'pt': 'pt-PT',
+        'en': 'en-US'
+      };
+      const locale = locales[i18n.language] || 'en-US';
+      
+      return new Intl.DateTimeFormat(locale, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',

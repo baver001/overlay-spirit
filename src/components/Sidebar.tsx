@@ -4,7 +4,7 @@ import OverlaysPanel from './OverlaysPanel';
 import { Overlay } from '@/lib/types';
 
 interface SidebarProps {
-  onAddOverlay: (type: 'css' | 'image', value: string) => void;
+  onAddOverlay: (type: 'css' | 'image', value: string, blendMode?: string) => void;
   selectedOverlay?: Overlay;
   onUpdateOverlay?: (id: string, newProps: Partial<Overlay>) => void;
   onDeleteOverlay?: (id: string) => void;
