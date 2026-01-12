@@ -704,8 +704,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   <Trash className="w-4 h-4" weight="fill" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs px-2 py-1">
-                <p>{t('editor.image_manager.delete')}</p>
+              <TooltipContent side="bottom">
+                {t('editor.image_manager.delete')}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -729,7 +729,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>{t('editor.hide')} (Space)</p>
+                {t('editor.compare')} (Space)
               </TooltipContent>
             </Tooltip>
 
@@ -746,7 +746,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>{t('editor.save')}</p>
+                {t('editor.save')}
               </TooltipContent>
             </Tooltip>
 
@@ -763,7 +763,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>{t('editor.share')}</p>
+                {t('editor.share')}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -1081,34 +1081,34 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           )}
 
           {/* Controls Bar */}
-          <div className="pointer-events-auto flex flex-col items-center bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/10 overflow-hidden w-full">
+          <div className="pointer-events-auto flex flex-col items-center bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/10 overflow-hidden">
             {/* Drag Handle */}
             <div 
-              className="w-full h-6 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-white/5 transition-colors border-b border-white/5"
+              className="w-full h-5 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-white/5 transition-colors border-b border-white/5"
               onMouseDown={handleToolbarDragStart}
               onTouchStart={handleToolbarDragStart}
             >
-              <GripHorizontal className="w-8 h-4 text-white/30" />
+              <GripHorizontal className="w-6 h-3 text-white/30" />
             </div>
 
-            <div className="flex flex-wrap justify-center gap-1 w-full p-1">
+            <div className="flex items-center justify-center gap-0.5 px-1.5 py-1">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     onClick={() => setShowSettings(!showSettings)}
                     variant={showSettings ? "default" : "ghost"}
                     size="icon"
-                    className={showSettings ? "bg-blue-500 text-white hover:bg-blue-600 h-9 w-9" : "text-white hover:bg-white/10 h-9 w-9"}
+                    className={showSettings ? "bg-blue-500 text-white hover:bg-blue-600 h-8 w-8" : "text-white hover:bg-white/10 h-8 w-8"}
                   >
-                    <Settings2 className="w-5 h-5" />
+                    <Settings2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>{t('editor.settings')}</p>
+                <TooltipContent>
+                  {t('editor.settings')}
                 </TooltipContent>
               </Tooltip>
               
-              <div className="w-px h-8 bg-white/10 mx-1 self-center" />
+              <div className="w-px h-6 bg-white/10 mx-0.5" />
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1116,13 +1116,13 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onClick={() => handleUpdate(selectedOverlay.id, { flipH: !selectedOverlay.flipH })}
                     variant="ghost"
                     size="icon"
-                    className={`hover:bg-white/10 h-9 w-9 ${selectedOverlay.flipH ? 'bg-white/20 text-blue-300' : 'text-white'}`}
+                    className={`hover:bg-white/10 h-8 w-8 ${selectedOverlay.flipH ? 'bg-white/20 text-blue-300' : 'text-white'}`}
                   >
-                    <FlipHorizontal className="w-5 h-5" />
+                    <FlipHorizontal className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>{t('editor.flip_h')}</p>
+                <TooltipContent>
+                  {t('editor.flip_h')}
                 </TooltipContent>
               </Tooltip>
 
@@ -1132,17 +1132,17 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onClick={() => handleUpdate(selectedOverlay.id, { flipV: !selectedOverlay.flipV })}
                     variant="ghost"
                     size="icon"
-                    className={`hover:bg-white/10 h-9 w-9 ${selectedOverlay.flipV ? 'bg-white/20 text-blue-300' : 'text-white'}`}
+                    className={`hover:bg-white/10 h-8 w-8 ${selectedOverlay.flipV ? 'bg-white/20 text-blue-300' : 'text-white'}`}
                   >
-                    <FlipVertical className="w-5 h-5" />
+                    <FlipVertical className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>{t('editor.flip_v')}</p>
+                <TooltipContent>
+                  {t('editor.flip_v')}
                 </TooltipContent>
               </Tooltip>
 
-              <div className="w-px h-8 bg-white/10 mx-1 self-center" />
+              <div className="w-px h-6 bg-white/10 mx-0.5" />
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1169,17 +1169,17 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     }}
                     variant="ghost"
                     size="icon"
-                    className="text-emerald-400 hover:bg-emerald-500/20 h-9 w-9"
+                    className="text-emerald-400 hover:bg-emerald-500/20 h-8 w-8"
                   >
-                    <Maximize2 className="w-5 h-5" />
+                    <Maximize2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Fit to canvas</p>
+                <TooltipContent>
+                  {t('editor.fit_to_canvas')}
                 </TooltipContent>
               </Tooltip>
 
-              <div className="w-px h-8 bg-white/10 mx-1 self-center" />
+              <div className="w-px h-6 bg-white/10 mx-0.5" />
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1187,13 +1187,13 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onClick={() => handleDelete(selectedOverlay.id)}
                     variant="ghost"
                     size="icon"
-                    className="text-red-400 hover:bg-red-500/20 h-9 w-9"
+                    className="text-red-400 hover:bg-red-500/20 h-8 w-8"
                   >
-                    <Trash className="w-5 h-5" weight="fill" />
+                    <Trash className="w-4 h-4" weight="fill" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>{t('editor.remove')}</p>
+                <TooltipContent>
+                  {t('editor.remove')}
                 </TooltipContent>
               </Tooltip>
             </div>

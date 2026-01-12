@@ -139,6 +139,8 @@
     "flip_h": "左右反転",
     "flip_v": "上下反転",
     "remove": "削除",
+    "settings": "設定",
+    "fit_to_canvas": "キャンバスに合わせる",
     "canvas_context_error": "キャンバスコンテキストの取得に失敗しました",
     "image_load_error": "画像の読み込みに失敗しました",
     "save_error": "画像の保存中にエラーが発生しました",

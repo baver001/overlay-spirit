@@ -139,6 +139,8 @@
     "flip_h": "Horizontal",
     "flip_v": "Vertical",
     "remove": "Remove",
+    "settings": "Settings",
+    "fit_to_canvas": "Fit to canvas",
     "canvas_context_error": "Failed to get canvas context",
     "image_load_error": "Failed to load image",
     "save_error": "Error saving image",

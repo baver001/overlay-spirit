@@ -1,9 +1,0 @@
-feat: improve editor UX, icons and deployment info visibility
-
-- Replace overlay rendering logic from 'contain' to 'cover' for full image fill
-- Add @phosphor-icons/react and replace delete/remove icons
-- Update rotation cursor to modern circular arrow style
-- Improve editor toolbar: add tooltips, fix z-index, optimize button placement
-- Restrict deployment info visibility to admins only (Header, AdminTopbar)
-- Hide footer on the main editor page
-- Add translations for 'Hide' button

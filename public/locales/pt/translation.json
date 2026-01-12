@@ -139,6 +139,8 @@
     "flip_h": "Horizontal",
     "flip_v": "Vertical",
     "remove": "Remover",
+    "settings": "Configurações",
+    "fit_to_canvas": "Ajustar ao canvas",
     "canvas_context_error": "Falha ao obter o contexto do canvas",
     "image_load_error": "Falha ao carregar imagem",
     "save_error": "Erro ao salvar imagem",
