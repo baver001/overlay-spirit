@@ -50,11 +50,6 @@ const Footer: React.FC<FooterProps> = ({ className }) => {
           <div className="flex items-center gap-4">
             <span>© {new Date().getFullYear()} Loverlay</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span>v{buildInfo.version}</span>
-            <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">{t('editor.deploy')}: {formatDate(buildInfo.buildDate)}</span>
-          </div>
         </div>
       </div>
     </footer>

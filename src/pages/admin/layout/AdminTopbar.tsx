@@ -1,11 +1,29 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, Activity } from "lucide-react";
 import { useAdminSession } from "../providers/AdminSessionProvider";
 import { Button } from "@/components/ui/button";
 
 export const AdminTopbar: React.FC = () => {
   const { user, logout } = useAdminSession();
+
+  const buildInfo = (window as any).__BUILD_INFO__ || {
+    version: 'dev',
+    buildDate: new Date().toISOString(),
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(dateString));
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
@@ -23,6 +41,12 @@ export const AdminTopbar: React.FC = () => {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end gap-6 px-6">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-mono text-violet-400">
+            <Activity className="w-3 h-3" />
+            <span>v{buildInfo.version}</span>
+            <span className="opacity-50">•</span>
+            <span>{formatDate(buildInfo.buildDate)}</span>
+          </div>
           <span className="text-xs uppercase tracking-wide text-muted-foreground">Admin dashboard</span>
           {user && (
             <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>

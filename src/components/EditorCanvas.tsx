@@ -1,25 +1,18 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDraggable } from '@/hooks/useDraggable';
 import { Overlay } from '@/lib/types';
-import { APP_CONFIG, CANVAS_BLEND_MAP } from '@/lib/constants';
+import { APP_CONFIG, CANVAS_BLEND_MAP, BLEND_MODES } from '@/lib/constants';
 import { snapToEdges, SnapResult } from '@/lib/snap';
 import ImageDropzone from './ImageDropzone';
 import OverlayTransformFrame from './OverlayTransformFrame';
 import EditorInstructions from './EditorInstructions';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Save, Share, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Save, Share, Eye, EyeOff, Maximize2, Settings2, FlipHorizontal, FlipVertical, GripHorizontal } from 'lucide-react';
+import { Trash, ImageSquare } from '@phosphor-icons/react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { useTranslation } from 'react-i18next';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Вычисление расстояния между двумя точками касания для pinch-zoom
 const getTouchDistance = (touch1: Touch, touch2: Touch): number => {
@@ -66,7 +59,56 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const [canvasOffset, setCanvasOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [snapGuides, setSnapGuides] = useState<{ snappedX: SnapResult['snappedX']; snappedY: SnapResult['snappedY'] } | null>(null);
   const [isTemporarilyHidden, setIsTemporarilyHidden] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  // Toolbar drag state
+  const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+  const toolbarDragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
+
+  const handleToolbarDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    
+    toolbarDragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      initialX: toolbarPos.x,
+      initialY: toolbarPos.y,
+    };
+  };
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!toolbarDragRef.current) return;
+      e.preventDefault();
+      
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      
+      const dx = clientX - toolbarDragRef.current.startX;
+      const dy = clientY - toolbarDragRef.current.startY;
+      
+      setToolbarPos({
+        x: toolbarDragRef.current.initialX + dx,
+        y: toolbarDragRef.current.initialY + dy,
+      });
+    };
+    
+    const handleEnd = () => {
+      toolbarDragRef.current = null;
+    };
+    
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+    };
+  }, []);
   const historyRef = useRef<string[]>([]);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const fittedOverlaysRef = useRef<Set<string>>(new Set());
@@ -279,14 +321,18 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       return { width: size * (overlay.scale || 1), height: size * (overlay.scale || 1) };
     }
     
-    const imageIsVertical = (imageStyle.height || 0) > (imageStyle.width || 0);
+    // Cover логика: заполняем фото полностью
+    const imageAspect = (imageStyle.width || 400) / (imageStyle.height || 400);
     const scale = overlay.scale || 1;
-    if (imageIsVertical) {
+    
+    if (aspectRatio > imageAspect) {
+      // Оверлей шире - заполняем по высоте
       return {
         width: Math.round((imageStyle.height || 400) * aspectRatio) * scale,
         height: (imageStyle.height || 400) * scale,
       };
     } else {
+      // Оверлей уже - заполняем по ширине
       return {
         width: (imageStyle.width || 400) * scale,
         height: Math.round((imageStyle.width || 400) / aspectRatio) * scale,
@@ -407,19 +453,20 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         } else {
           const oImg = overlayImageMap.get(overlay.id);
           if (oImg) {
-            const aspectRatio = oImg.naturalWidth / oImg.naturalHeight;
-            const imageIsVertical = imageDimensions.height > imageDimensions.width;
+            const overlayAspect = oImg.naturalWidth / oImg.naturalHeight;
+            const imageAspect = imageDimensions.width / imageDimensions.height;
 
             let renderWidth, renderHeight;
 
-            if (imageIsVertical) {
-              // Заполнение по высоте фото, ширина по аспекту
+            // Cover логика: заполняем фото полностью без пустых краёв
+            if (overlayAspect > imageAspect) {
+              // Оверлей шире относительно фото - заполняем по высоте
               renderHeight = imageDimensions.height;
-              renderWidth = imageDimensions.height * aspectRatio;
+              renderWidth = imageDimensions.height * overlayAspect;
             } else {
-              // Заполнение по ширине фото, высота по аспекту
+              // Оверлей уже - заполняем по ширине
               renderWidth = imageDimensions.width;
-              renderHeight = imageDimensions.width / aspectRatio;
+              renderHeight = imageDimensions.width / overlayAspect;
             }
             ctx.drawImage(oImg, -renderWidth / 2, -renderHeight / 2, renderWidth, renderHeight);
           }
@@ -514,17 +561,20 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         } else {
           const oImg = overlayImageMap.get(overlay.id);
           if (oImg) {
-            const aspectRatio = oImg.naturalWidth / oImg.naturalHeight;
-            const imageIsVertical = imageDimensions.height > imageDimensions.width;
+            const overlayAspect = oImg.naturalWidth / oImg.naturalHeight;
+            const imageAspect = imageDimensions.width / imageDimensions.height;
 
             let renderWidth, renderHeight;
 
-            if (imageIsVertical) {
+            // Cover логика: заполняем фото полностью без пустых краёв
+            if (overlayAspect > imageAspect) {
+              // Оверлей шире относительно фото - заполняем по высоте
               renderHeight = imageDimensions.height;
-              renderWidth = imageDimensions.height * aspectRatio;
+              renderWidth = imageDimensions.height * overlayAspect;
             } else {
+              // Оверлей уже - заполняем по ширине
               renderWidth = imageDimensions.width;
-              renderHeight = imageDimensions.width / aspectRatio;
+              renderHeight = imageDimensions.width / overlayAspect;
             }
             ctx.drawImage(oImg, -renderWidth / 2, -renderHeight / 2, renderWidth, renderHeight);
           }
@@ -609,13 +659,17 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       return { width: size, height: size };
     }
     
-    const imageIsVertical = (imageStyle.height || 0) > (imageStyle.width || 0);
-    if (imageIsVertical) {
+    // Cover логика: заполняем фото полностью
+    const imageAspect = (imageStyle.width || 400) / (imageStyle.height || 400);
+    
+    if (aspectRatio > imageAspect) {
+      // Оверлей шире - заполняем по высоте
       return {
         width: Math.round((imageStyle.height || 400) * aspectRatio),
         height: imageStyle.height || 400,
       };
     } else {
+      // Оверлей уже - заполняем по ширине
       return {
         width: imageStyle.width || 400,
         height: Math.round((imageStyle.width || 400) / aspectRatio),
@@ -624,8 +678,9 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   }, [imageStyle, overlayAspectRatios, localAspectRatios]);
 
   return (
-    <main className="fixed top-16 left-0 md:left-[340px] right-0 bottom-0 md:bottom-0 pb-16 md:pb-0 overflow-hidden" 
-          style={{
+    <TooltipProvider delayDuration={0}>
+      <main className="fixed top-16 left-0 md:left-[340px] right-0 bottom-0 md:bottom-0 pb-16 md:pb-0 overflow-hidden" 
+            style={{
             background: 'hsl(215 27.9% 12%)',
             backgroundImage: `
               radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)
@@ -635,79 +690,84 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       
       {/* Кнопки управления */}
       {image && (
-        <>
-          {/* Кнопка удалить изображение - слева */}
-          <div className="absolute top-4 left-4 z-20">
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-              <AlertDialogTrigger asChild>
+        <div className="absolute top-4 left-0 right-0 px-4 flex justify-between z-[110] pointer-events-none">
+          {/* Левая часть: Удаление изображения */}
+          <div className="pointer-events-auto flex gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
+                  onClick={onImageRemove}
                   variant="destructive"
                   size="sm"
-                  className="bg-red-500/80 hover:bg-red-600/80 backdrop-blur-sm"
+                  className="shadow-lg opacity-90 hover:opacity-100 px-3 bg-red-500/80 backdrop-blur-sm hover:bg-red-600/90 border-red-400/30"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash className="w-4 h-4" weight="fill" />
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('editor.image_manager.delete_title')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('editor.image_manager.delete_desc')}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => {
-                      onImageRemove();
-                      setIsDeleteDialogOpen(false);
-                    }}
-                    className="bg-red-500 hover:bg-red-600"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {t('editor.image_manager.delete')}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs px-2 py-1">
+                <p>{t('editor.image_manager.delete')}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
-          {/* Остальные кнопки - справа */}
-          <div className="absolute top-4 right-4 flex gap-2 z-20">
-            <Button
-              onMouseDown={() => setIsTemporarilyHidden(true)}
-              onMouseUp={() => setIsTemporarilyHidden(false)}
-              onMouseLeave={() => setIsTemporarilyHidden(false)}
-              onTouchStart={() => setIsTemporarilyHidden(true)}
-              onTouchEnd={() => setIsTemporarilyHidden(false)}
-              variant="secondary"
-              size="sm"
-              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 select-none"
-              title={t('editor.compare')}
-            >
-              {isTemporarilyHidden ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-              {t('editor.compare')}
-            </Button>
-            <Button
-              onClick={handleSave}
-              variant="secondary"
-              size="sm"
-              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {t('editor.save')}
-            </Button>
-            <Button
-              onClick={handleShare}
-              variant="secondary"
-              size="sm"
-              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-            >
-              <Share className="w-4 h-4 mr-2" />
-              {t('editor.share')}
-            </Button>
+          {/* Правая часть: Hide / Save / Share */}
+          <div className="pointer-events-auto flex gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onMouseDown={() => setIsTemporarilyHidden(true)}
+                  onMouseUp={() => setIsTemporarilyHidden(false)}
+                  onMouseLeave={() => setIsTemporarilyHidden(false)}
+                  onTouchStart={() => setIsTemporarilyHidden(true)}
+                  onTouchEnd={() => setIsTemporarilyHidden(false)}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 select-none"
+                >
+                  {isTemporarilyHidden ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                  {t('editor.hide')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t('editor.hide')} (Space)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleSave}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {t('editor.save')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t('editor.save')}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleShare}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+                >
+                  <Share className="w-4 h-4 mr-2" />
+                  {t('editor.share')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t('editor.share')}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-        </>
+        </div>
       )}
 
       <div 
@@ -755,7 +815,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 className="w-full h-full object-contain rounded-lg block"
               />
 
-              {/* Оверлеи: позиционируются внутри родительского контейнера, который имеет overflow:hidden */}
+              {/* Оверлеи */}
             {Array.isArray(overlays) && overlays.length > 0 && !isTemporarilyHidden && overlays.map((overlay) => {
               const aspectRatio = overlayAspectRatios?.[overlay.id] ?? localAspectRatios[overlay.id];
                 let sizeStyle = {};
@@ -768,16 +828,19 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     height: `${largerDimension}px`,
                   };
                 } else {
-                  const imageIsVertical = imageStyle.height > imageStyle.width;
-                  if (imageIsVertical) {
+                  // Cover логика: заполняем фото полностью без пустых краёв
+                  const imageAspect = imageStyle.width / imageStyle.height;
+                  if (aspectRatio > imageAspect) {
+                    // Оверлей шире относительно фото - заполняем по высоте
                     sizeStyle = {
-                     height: `${imageStyle.height}px`,
-                     width: `${Math.round(imageStyle.height * aspectRatio)}px`,
+                      height: `${imageStyle.height}px`,
+                      width: `${Math.round(imageStyle.height * aspectRatio)}px`,
                     };
                   } else {
+                    // Оверлей уже - заполняем по ширине
                     sizeStyle = {
-                    width: `${imageStyle.width}px`,
-                    height: `${Math.round(imageStyle.width / aspectRatio)}px`,
+                      width: `${imageStyle.width}px`,
+                      height: `${Math.round(imageStyle.width / aspectRatio)}px`,
                     };
                   }
                 }
@@ -885,8 +948,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                           }
                           return `url(${imageUrl})`;
                         })() : undefined,
-                         // Чтобы не искажать пропорции изображения внутри контейнера
-                         backgroundSize: 'contain',
+                         // Заполняем фото полностью (cover), чтобы не было пустых краёв
+                         backgroundSize: 'cover',
                          backgroundPosition: 'center',
                          backgroundRepeat: 'no-repeat',
                          opacity: overlay.opacity,
@@ -896,8 +959,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 );
               })}
               
-
-              {/* Snap guides — направляющие для прилипания */}
+              {/* Snap guides */}
               {snapGuides && isDragging && (
                 <>
                   {/* Вертикальная центральная линия */}
@@ -967,7 +1029,179 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           onDeselect={() => onSelectOverlay(null)}
         />
       )}
+      {/* Floating Toolbar and Settings */}
+      {selectedOverlay && !isTemporarilyHidden && (
+        <div 
+          className="absolute z-[110] flex flex-col items-center gap-4 w-full max-w-[320px] pointer-events-none touch-none"
+          style={{ 
+            bottom: '2rem', 
+            left: '50%', 
+            transform: `translate(calc(-50% + ${toolbarPos.x}px), ${toolbarPos.y}px)` 
+          }}
+        >
+          {/* Settings Panel */}
+          {showSettings && (
+            <div className="pointer-events-auto bg-slate-900/60 backdrop-blur-xl rounded-2xl p-4 shadow-2xl mb-2 w-full animate-in fade-in slide-in-from-bottom-4 ring-1 ring-white/10">
+               {/* Blend Mode */}
+                <div className="flex items-center gap-3 mb-4">
+                  <Select
+                    value={selectedOverlay.blendMode}
+                    onValueChange={(value: any) => handleUpdate(selectedOverlay.id, { blendMode: value })}
+                  >
+                    <SelectTrigger className="h-9 bg-white/5 border-white/10 text-white rounded-lg flex-1">
+                      <SelectValue placeholder="Blend mode" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-60">
+                      {BLEND_MODES.map((mode) => (
+                        <SelectItem key={mode.value} value={mode.value} className="focus:bg-blue-500 focus:text-white">
+                          {t(`blend_modes.${mode.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Opacity */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 px-1">
+                    <Slider
+                      value={[selectedOverlay.opacity]}
+                      onValueChange={([value]) => handleUpdate(selectedOverlay.id, { opacity: value })}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 w-9 text-right">
+                    {Math.round(selectedOverlay.opacity * 100)}%
+                  </span>
+                </div>
+            </div>
+          )}
+
+          {/* Controls Bar */}
+          <div className="pointer-events-auto flex flex-col items-center bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/10 overflow-hidden w-full">
+            {/* Drag Handle */}
+            <div 
+              className="w-full h-6 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-white/5 transition-colors border-b border-white/5"
+              onMouseDown={handleToolbarDragStart}
+              onTouchStart={handleToolbarDragStart}
+            >
+              <GripHorizontal className="w-8 h-4 text-white/30" />
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-1 w-full p-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setShowSettings(!showSettings)}
+                    variant={showSettings ? "default" : "ghost"}
+                    size="icon"
+                    className={showSettings ? "bg-blue-500 text-white hover:bg-blue-600 h-9 w-9" : "text-white hover:bg-white/10 h-9 w-9"}
+                  >
+                    <Settings2 className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>{t('editor.settings')}</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <div className="w-px h-8 bg-white/10 mx-1 self-center" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => handleUpdate(selectedOverlay.id, { flipH: !selectedOverlay.flipH })}
+                    variant="ghost"
+                    size="icon"
+                    className={`hover:bg-white/10 h-9 w-9 ${selectedOverlay.flipH ? 'bg-white/20 text-blue-300' : 'text-white'}`}
+                  >
+                    <FlipHorizontal className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>{t('editor.flip_h')}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => handleUpdate(selectedOverlay.id, { flipV: !selectedOverlay.flipV })}
+                    variant="ghost"
+                    size="icon"
+                    className={`hover:bg-white/10 h-9 w-9 ${selectedOverlay.flipV ? 'bg-white/20 text-blue-300' : 'text-white'}`}
+                  >
+                    <FlipVertical className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>{t('editor.flip_v')}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="w-px h-8 bg-white/10 mx-1 self-center" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => {
+                        const isImgVertical = imageDimensions && imageDimensions.height > imageDimensions.width;
+                        const aspectRatio = overlayAspectRatios?.[selectedOverlay.id] ?? localAspectRatios[selectedOverlay.id] ?? 1;
+                        const isOverlayVertical = aspectRatio < 1;
+                        
+                        const shouldRotate = (isImgVertical && !isOverlayVertical) || (!isImgVertical && isOverlayVertical);
+                        const targetRotation = shouldRotate ? 90 : 0;
+                        
+                        let targetScale = 1;
+                        if (shouldRotate) {
+                          targetScale = isImgVertical ? (1 / aspectRatio) : aspectRatio;
+                        }
+                        
+                        handleUpdate(selectedOverlay.id, { 
+                          rotation: targetRotation, 
+                          scale: targetScale, 
+                          x: 0, 
+                          y: 0 
+                        });
+                    }}
+                    variant="ghost"
+                    size="icon"
+                    className="text-emerald-400 hover:bg-emerald-500/20 h-9 w-9"
+                  >
+                    <Maximize2 className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Fit to canvas</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="w-px h-8 bg-white/10 mx-1 self-center" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => handleDelete(selectedOverlay.id)}
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-400 hover:bg-red-500/20 h-9 w-9"
+                  >
+                    <Trash className="w-5 h-5" weight="fill" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>{t('editor.remove')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
+    </TooltipProvider>
   );
 };
 

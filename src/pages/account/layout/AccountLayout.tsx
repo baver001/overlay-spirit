@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, ShoppingBag, User, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, User, ArrowLeft, Activity, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
+import { isSuperAdmin } from "@/lib/auth";
 
 const navItems = [
   { to: "/account/dashboard", icon: LayoutDashboard, labelKey: "account.dashboard" },
@@ -18,8 +19,35 @@ const navItems = [
 
 export const AccountLayout: React.FC = () => {
   const { user, loading, logout } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
+
+  const isSuper = user ? isSuperAdmin(user.email) : false;
+
+  const buildInfo = (window as any).__BUILD_INFO__ || {
+    version: 'dev',
+    buildDate: new Date().toISOString(),
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const locales: Record<string, string> = {
+        'ru': 'ru-RU',
+        'ja': 'ja-JP',
+        'pt': 'pt-PT',
+        'en': 'en-US'
+      };
+      const locale = locales[i18n.language] || 'en-US';
+      return new Intl.DateTimeFormat(locale, {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(dateString));
+    } catch {
+      return dateString;
+    }
+  };
 
   if (loading) {
     return (
@@ -48,19 +76,31 @@ export const AccountLayout: React.FC = () => {
           {/* Логотип выровнен по сайдбару */}
           <div className="hidden md:flex md:w-64 items-center justify-center px-6 border-r border-border h-full">
             <a href="/" className="flex items-center">
-              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
+              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
             </a>
           </div>
           {/* Мобильный логотип */}
           <div className="flex md:hidden items-center px-4">
             <a href="/" className="flex items-center">
-              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
+              <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
             </a>
           </div>
+
+          {isSuper && (
+            <div className="ml-4 hidden lg:flex items-center gap-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-mono text-violet-400">
+              <Activity className="w-3 h-3" />
+              <span>v{buildInfo.version}</span>
+              <span className="opacity-50">•</span>
+              <span>{formatDate(buildInfo.buildDate)}</span>
+            </div>
+          )}
           
           <div className="flex flex-1 items-center justify-end gap-3 px-4">
             <LanguageSwitcher />
-            <span className="text-sm text-muted-foreground hidden sm:block">{user.email}</span>
+            <span className="text-sm text-muted-foreground hidden sm:flex items-center gap-1.5">
+              {user.email}
+              {isSuper && <Shield className="w-3 h-3 text-violet-400" />}
+            </span>
             <Button 
               variant="ghost" 
               size="sm" 

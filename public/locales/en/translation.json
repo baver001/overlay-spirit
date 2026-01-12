@@ -148,7 +148,8 @@
     "share_error": "Error sharing",
     "save": "Save",
     "share": "Share",
-    "compare": "Hide",
+    "hide": "Hide",
+    "compare": "Compare",
     "deploy": "Deploy",
     "image_dropzone": {
       "error_type": "Only images (JPG, PNG, GIF, WebP) are supported",

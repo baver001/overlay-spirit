@@ -148,7 +148,8 @@
     "share_error": "共有エラー",
     "save": "保存",
     "share": "共有",
-    "compare": "非表示",
+    "hide": "非表示",
+    "compare": "比較",
     "deploy": "デプロイ",
     "image_dropzone": {
       "error_type": "画像（JPG, PNG, GIF, WebP）のみサポートされています",

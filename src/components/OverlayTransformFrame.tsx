@@ -1,10 +1,6 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Overlay } from '@/lib/types';
-import { FlipHorizontal, FlipVertical, X, RotateCw, Maximize2, Trash2, Settings2, Droplets, Type } from 'lucide-react';
-import { BLEND_MODES } from '@/lib/constants';
 import { useTranslation } from 'react-i18next';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 
 interface OverlayTransformFrameProps {
   overlay: Overlay;
@@ -22,9 +18,10 @@ type HandleType = 'tl' | 'tr' | 'bl' | 'br' | 'rotate';
 // Размер узлов увеличен для лучшей доступности на touch-устройствах
 const HANDLE_SIZE = 32; // Большая невидимая зона касания
 const HANDLE_VISUAL_SIZE = 10; // Визуальный размер (для отображения)
-const ROTATE_OFFSET = 40;
-const BUTTON_SIZE = 36;
-const BUTTON_GAP = 6;
+const ROTATE_ZONE_FACTOR = 0.45; // Увеличили зону вращения (45%)
+
+// Современный курсор вращения в стиле Phosphor Icons
+const ROTATE_CURSOR = `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 16c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8c1.657 0 3.182.504 4.444 1.364' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M24 16c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8c1.657 0 3.182.504 4.444 1.364' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 12.5l4.5-1.5L24 6.5' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 12.5l4.5-1.5L24 6.5' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, alias`;
 
 // Вспомогательная функция поворота точки
 const rotatePoint = (x: number, y: number, angleDeg: number) => {
@@ -58,18 +55,15 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
   width,
   height,
   canvasOffset,
-  imageDimensions,
   onUpdate,
-  onDelete,
-  onDeselect,
 }) => {
   const { t } = useTranslation();
-  const [showSettings, setShowSettings] = useState(false);
   const startRef = useRef<{ 
     x: number; 
     y: number; 
     scale: number; 
     rotation: number;
+    initialAngle: number; // Добавляем начальный угол мыши
     overlayX: number;
     overlayY: number;
     anchorWorldX: number;
@@ -99,16 +93,26 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
       
       const dx = clientX - currentCenterX;
       const dy = clientY - currentCenterY;
-      let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+      const currentAngle = Math.atan2(dy, dx) * (180 / Math.PI);
       
-      if (angle < 0) angle += 360;
-      if (angle >= 360) angle -= 360;
+      // Вычисляем разницу углов
+      let angleDiff = currentAngle - start.initialAngle;
+      
+      // Нормализация разницы
+      if (angleDiff < -180) angleDiff += 360;
+      if (angleDiff > 180) angleDiff -= 360;
+      
+      let newRotation = start.rotation + angleDiff;
+      
+      // Нормализация результата
+      if (newRotation < 0) newRotation += 360;
+      if (newRotation >= 360) newRotation -= 360;
       
       if (shiftKey) {
-        angle = Math.round(angle / 15) * 15;
+        newRotation = Math.round(newRotation / 15) * 15;
       }
       
-      onUpdate(overlay.id, { rotation: angle });
+      onUpdate(overlay.id, { rotation: newRotation });
     } else {
       // Масштабирование с anchor в противоположном углу
       const { anchorWorldX, anchorWorldY, anchorOffsetX, anchorOffsetY } = start;
@@ -160,11 +164,18 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
   // Инициализация drag (общая логика для mouse/touch)
   const initDrag = useCallback((clientX: number, clientY: number, handle: HandleType) => {
     if (handle === 'rotate') {
+      const currentCenterX = centerX;
+      const currentCenterY = centerY;
+      const dx = clientX - currentCenterX;
+      const dy = clientY - currentCenterY;
+      const initialAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
       startRef.current = {
         x: clientX,
         y: clientY,
         scale: overlay.scale,
         rotation: overlay.rotation,
+        initialAngle, // Сохраняем начальный угол
         overlayX: overlay.x,
         overlayY: overlay.y,
         anchorWorldX: 0,
@@ -258,36 +269,23 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
     br: { x: frameWidth / 2, y: frameHeight / 2 },
   };
 
-  // Позиция кнопки вращения (сверху)
-  const rotateHandlePos = { x: 0, y: -frameHeight / 2 - ROTATE_OFFSET };
-
-  // Позиции кнопок внизу (по центру)
-  const bottomY = frameHeight / 2 + BUTTON_SIZE / 2 + 10;
-  const totalButtonsWidth = BUTTON_SIZE * 3 + BUTTON_GAP * 2; // Увеличили для 3 кнопок
-  const flipHPos = { x: -totalButtonsWidth / 2 + BUTTON_SIZE / 2, y: bottomY };
-  const settingsBtnPos = { x: 0, y: bottomY }; // Центральная кнопка
-  const flipVPos = { x: totalButtonsWidth / 2 - BUTTON_SIZE / 2, y: bottomY };
-  
-  // Кнопка удаления — нижний левый угол
-  const deletePos = { x: -frameWidth / 2, y: frameHeight / 2 + BUTTON_SIZE / 2 + 10 };
-  
-  // Кнопка "подогнать под размер" — нижний правый угол
-  const fitPos = { x: frameWidth / 2, y: frameHeight / 2 + BUTTON_SIZE / 2 + 10 };
-
-  // Общие стили для кнопок
-  const buttonBaseStyle = "w-full h-full rounded-md flex items-center justify-center transition-colors";
-
   // Определение курсора в зависимости от поворота
-  const getCursor = (key: string) => {
-    const rotation = overlay.rotation % 180;
-    const isSwapped = (rotation > 45 && rotation < 135);
-    
-    if (key === 'tl' || key === 'br') {
-      return isSwapped ? 'nesw-resize' : 'nwse-resize';
-    } else {
-      return isSwapped ? 'nwse-resize' : 'nesw-resize';
-    }
-  };
+const getResizeCursor = (key: string) => {
+  const rotation = overlay.rotation % 180;
+  const isSwapped = (rotation > 45 && rotation < 135);
+  
+  if (key === 'tl' || key === 'br') {
+    return isSwapped ? 'nesw-resize' : 'nwse-resize';
+  } else {
+    return isSwapped ? 'nwse-resize' : 'nesw-resize';
+  }
+};
+
+// Современный курсор вращения в стиле Phosphor Icons
+const ROTATE_CURSOR = `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 16c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8c1.657 0 3.182.504 4.444 1.364' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M24 16c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8c1.657 0 3.182.504 4.444 1.364' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 12.5l4.5-1.5L24 6.5' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 12.5l4.5-1.5L24 6.5' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, alias`;
+
+// Размер зоны вращения (45% от размера + фиксированный минимум)
+const rotationZoneSize = Math.max(40, Math.min(frameWidth, frameHeight) * ROTATE_ZONE_FACTOR);
 
   return (
     <div
@@ -310,19 +308,26 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
             strokeWidth="1.5"
           />
 
-          {/* Линия к кнопке вращения */}
-          <line
-            x1={0}
-            y1={-frameHeight / 2}
-            x2={0}
-            y2={-frameHeight / 2 - ROTATE_OFFSET + BUTTON_SIZE / 2 + 2}
-            stroke="rgba(96, 165, 250, 0.6)"
-            strokeWidth="1"
-          />
-
-          {/* Угловые узлы масштабирования */}
+          {/* Угловые узлы масштабирования и вращения */}
           {Object.entries(corners).map(([key, pos]) => (
             <g key={key}>
+              {/* Зона вращения - большая, лежит под узлом resize */}
+              <rect
+                x={pos.x - rotationZoneSize / 2}
+                y={pos.y - rotationZoneSize / 2}
+                width={rotationZoneSize}
+                height={rotationZoneSize}
+                fill="transparent"
+                className="pointer-events-auto"
+                style={{ 
+                  cursor: ROTATE_CURSOR, // Курсор вращения - круглая стрелка
+                  touchAction: 'none',
+                }}
+                onMouseDown={(e) => handleMouseDown(e, 'rotate')}
+                onTouchStart={(e) => handleTouchStart(e, 'rotate')}
+              />
+
+              {/* Зона масштабирования - точечная на углу */}
               {/* Невидимая большая зона касания */}
               <rect
                 x={pos.x - HANDLE_SIZE / 2}
@@ -332,12 +337,13 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
                 fill="transparent"
                 className="pointer-events-auto"
                 style={{ 
-                  cursor: getCursor(key),
+                  cursor: getResizeCursor(key),
                   touchAction: 'none',
                 }}
                 onMouseDown={(e) => handleMouseDown(e, key as HandleType)}
                 onTouchStart={(e) => handleTouchStart(e, key as HandleType)}
               />
+              
               {/* Видимый маленький квадрат */}
               <rect
                 x={pos.x - HANDLE_VISUAL_SIZE / 2}
@@ -350,229 +356,6 @@ const OverlayTransformFrame: React.FC<OverlayTransformFrameProps> = ({
               />
             </g>
           ))}
-
-          {/* Кнопка вращения (сверху) */}
-          <foreignObject
-            x={rotateHandlePos.x - BUTTON_SIZE / 2}
-            y={rotateHandlePos.y - BUTTON_SIZE / 2}
-            width={BUTTON_SIZE}
-            height={BUTTON_SIZE}
-            className="pointer-events-auto"
-          >
-            <div
-              onMouseDown={(e) => handleMouseDown(e as any, 'rotate')}
-              onTouchStart={(e) => handleTouchStart(e as any, 'rotate')}
-              className={`${buttonBaseStyle} cursor-grab bg-slate-900 border-2 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300`}
-              style={{ touchAction: 'none' }}
-            >
-              <RotateCw className="w-4 h-4" />
-            </div>
-          </foreignObject>
-
-          {/* Кнопка FlipH */}
-          <foreignObject
-            x={flipHPos.x - BUTTON_SIZE / 2}
-            y={flipHPos.y - BUTTON_SIZE / 2}
-            width={BUTTON_SIZE}
-            height={BUTTON_SIZE}
-            className="pointer-events-auto"
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdate(overlay.id, { flipH: !overlay.flipH });
-              }}
-              className={`${buttonBaseStyle} border-2 ${
-                overlay.flipH 
-                  ? 'bg-blue-500 border-blue-400 text-white' 
-                  : 'bg-slate-900 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300'
-              }`}
-              title={t('editor.flip_h')}
-            >
-              <FlipHorizontal className="w-4 h-4" />
-            </button>
-          </foreignObject>
-
-          {/* Кнопка настроек (Blend & Opacity) */}
-          <foreignObject
-            x={settingsBtnPos.x - BUTTON_SIZE / 2}
-            y={settingsBtnPos.y - BUTTON_SIZE / 2}
-            width={BUTTON_SIZE}
-            height={BUTTON_SIZE}
-            className="pointer-events-auto"
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowSettings(!showSettings);
-              }}
-              className={`${buttonBaseStyle} border-2 ${
-                showSettings 
-                  ? 'bg-blue-500 border-blue-400 text-white' 
-                  : 'bg-slate-900 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300'
-              }`}
-              title={t('editor.settings')}
-            >
-              <Settings2 className="w-4 h-4" />
-            </button>
-          </foreignObject>
-
-          {/* Кнопка FlipV */}
-          <foreignObject
-            x={flipVPos.x - BUTTON_SIZE / 2}
-            y={flipVPos.y - BUTTON_SIZE / 2}
-            width={BUTTON_SIZE}
-            height={BUTTON_SIZE}
-            className="pointer-events-auto"
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdate(overlay.id, { flipV: !overlay.flipV });
-              }}
-              className={`${buttonBaseStyle} border-2 ${
-                overlay.flipV 
-                  ? 'bg-blue-500 border-blue-400 text-white' 
-                  : 'bg-slate-900 border-blue-400 text-blue-400 hover:bg-blue-950 hover:text-blue-300'
-              }`}
-              title={t('editor.flip_v')}
-            >
-              <FlipVertical className="w-4 h-4" />
-            </button>
-          </foreignObject>
-
-          {/* Кнопка удаления (Красный крестик) */}
-          <foreignObject
-            x={deletePos.x - BUTTON_SIZE / 2}
-            y={deletePos.y - BUTTON_SIZE / 2}
-            width={BUTTON_SIZE}
-            height={BUTTON_SIZE}
-            className="pointer-events-auto"
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(overlay.id);
-              }}
-              className={`${buttonBaseStyle} bg-slate-900 border-2 border-red-500 text-red-500 hover:bg-red-950 hover:text-red-400`}
-              title="Delete"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </foreignObject>
-
-          {/* Кнопка "подогнать под размер" */}
-          <foreignObject
-            x={fitPos.x - BUTTON_SIZE / 2}
-            y={fitPos.y - BUTTON_SIZE / 2}
-            width={BUTTON_SIZE}
-            height={BUTTON_SIZE}
-            className="pointer-events-auto"
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                
-                // Пропорции
-                const isImgVertical = imageDimensions && imageDimensions.height > imageDimensions.width;
-                const overlayAspectRatio = width / height;
-                const isOverlayVertical = overlayAspectRatio < 1;
-                
-                // Если ориентации не совпадают - поворачиваем на 90 градусов
-                const shouldRotate = (isImgVertical && !isOverlayVertical) || (!isImgVertical && isOverlayVertical);
-                const targetRotation = shouldRotate ? 90 : 0;
-                
-                // Вычисляем масштаб для идеального заполнения (Fit/Cover)
-                let targetScale = 1;
-                if (shouldRotate) {
-                  // Если поворачиваем, то ширина становится высотой и наоборот
-                  targetScale = isImgVertical ? (1 / overlayAspectRatio) : overlayAspectRatio;
-                }
-
-                onUpdate(overlay.id, { 
-                  scale: targetScale, 
-                  rotation: targetRotation, 
-                  x: 0, 
-                  y: 0,
-                  flipH: false,
-                  flipV: false,
-                });
-              }}
-              className={`${buttonBaseStyle} bg-slate-900 border-2 border-emerald-400 text-emerald-400 hover:bg-emerald-950 hover:text-emerald-300`}
-              title="Fit to canvas"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
-          </foreignObject>
-
-          {/* Панель настроек (Blend Mode & Opacity) */}
-          {showSettings && (
-            <foreignObject
-              x={-110} // Центрируем панель (220/2)
-              y={-frameHeight / 2 - ROTATE_OFFSET - 85}
-              width={220}
-              height={95}
-              className="pointer-events-auto"
-            >
-              <div className="bg-slate-900/90 backdrop-blur-md border-2 border-blue-400/50 rounded-xl p-3 shadow-2xl space-y-3">
-                {/* Blend Mode */}
-                <div className="flex items-center gap-2">
-                  <div className="bg-blue-500/20 p-1.5 rounded-lg">
-                    <Settings2 className="w-3.5 h-3.5 text-blue-400" />
-                  </div>
-                  <Select
-                    value={overlay.blendMode}
-                    onValueChange={(value: Overlay['blendMode']) => onUpdate(overlay.id, { blendMode: value })}
-                  >
-                    <SelectTrigger 
-                      className="h-8 text-[11px] bg-slate-800/50 border-slate-700 text-white rounded-lg flex-1"
-                      onWheel={(e) => {
-                        e.preventDefault();
-                        const idx = BLEND_MODES.findIndex(m => m.value === overlay.blendMode);
-                        if (idx < 0) return;
-                        if (e.deltaY > 0) {
-                          const next = BLEND_MODES[(idx + 1) % BLEND_MODES.length];
-                          onUpdate(overlay.id, { blendMode: next.value });
-                        } else if (e.deltaY < 0) {
-                          const prev = BLEND_MODES[(idx - 1 + BLEND_MODES.length) % BLEND_MODES.length];
-                          onUpdate(overlay.id, { blendMode: prev.value });
-                        }
-                      }}
-                    >
-                      <SelectValue placeholder="Blend mode" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                      {BLEND_MODES.map((mode) => (
-                        <SelectItem key={mode.value} value={mode.value} className="text-[11px] focus:bg-blue-500 focus:text-white">
-                          {t(`blend_modes.${mode.value}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Opacity */}
-                <div className="flex items-center gap-3">
-                  <div className="bg-emerald-500/20 p-1.5 rounded-lg">
-                    <Droplets className="w-3.5 h-3.5 text-emerald-400" />
-                  </div>
-                  <div className="flex-1 px-1">
-                    <Slider
-                      value={[overlay.opacity]}
-                      onValueChange={([value]) => onUpdate(overlay.id, { opacity: value })}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      className="cursor-pointer"
-                    />
-                  </div>
-                  <span className="text-[10px] font-mono text-slate-400 w-7 text-right">
-                    {Math.round(overlay.opacity * 100)}%
-                  </span>
-                </div>
-              </div>
-            </foreignObject>
-          )}
         </g>
       </svg>
     </div>

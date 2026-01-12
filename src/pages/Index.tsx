@@ -123,7 +123,7 @@ const Index: React.FC = () => {
           onDeleteOverlay={handleDeleteOverlay}
         />
       </div>
-      <Footer />
+      <Footer className="hidden" />
     </div>
   );
 };

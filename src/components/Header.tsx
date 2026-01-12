@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, LogOut, UserCircle2, Settings, Shield, Info } from 'lucide-react';
+import { LogIn, LogOut, UserCircle2, Settings, Shield, Info, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from './AuthModal';
 import InstructionsModal from './InstructionsModal';
@@ -17,18 +17,55 @@ import {
 
 const Header: React.FC = React.memo(() => {
   const { user, logout } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [authOpen, setAuthOpen] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
 
   const isSuper = isSuperAdmin(user?.email);
 
+  const buildInfo = (window as any).__BUILD_INFO__ || {
+    version: 'dev',
+    buildDate: new Date().toISOString(),
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const locales: Record<string, string> = {
+        'ru': 'ru-RU',
+        'ja': 'ja-JP',
+        'pt': 'pt-PT',
+        'en': 'en-US'
+      };
+      const locale = locales[i18n.language] || 'en-US';
+      
+      return new Intl.DateTimeFormat(locale, {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date);
+    } catch {
+      return dateString;
+    }
+  };
+
   return (
     <>
       <header className="flex items-center p-4 border-b border-border fixed top-0 left-0 right-0 bg-background/80 backdrop-blur-sm z-20 h-[60px]">
         <a href="https://loverlay.com" className="flex items-center gap-3">
-          <img src="/assets/logo_white.svg" alt="Loverlay" className="h-6" />
+          <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
         </a>
+
+        {isSuper && (
+          <div className="ml-4 hidden lg:flex items-center gap-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-mono text-violet-400">
+            <Activity className="w-3 h-3" />
+            <span>v{buildInfo.version}</span>
+            <span className="opacity-50">•</span>
+            <span>{formatDate(buildInfo.buildDate)}</span>
+          </div>
+        )}
+
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
           
