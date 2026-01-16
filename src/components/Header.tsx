@@ -52,7 +52,7 @@ const Header: React.FC = React.memo(() => {
 
   return (
     <>
-      <header className="flex items-center p-4 border-b border-border fixed top-0 left-0 right-0 bg-background/80 backdrop-blur-sm z-20 h-[60px]">
+      <header className="flex items-center px-4 border-b border-border fixed top-0 left-0 right-0 bg-background/80 backdrop-blur-unified-md z-fixed h-header">
         <a href="https://loverlay.com" className="flex items-center gap-3">
           <img src="/assets/logo_white.svg" alt="Loverlay" className="h-4" />
         </a>
@@ -91,7 +91,7 @@ const Header: React.FC = React.memo(() => {
                     {isSuper && <Shield className="w-3 h-3 text-violet-400" />}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 bg-surface-1 border-border">
                   {/* Личный кабинет - для всех пользователей */}
                   <DropdownMenuItem asChild>
                     <a href="/account" className="flex items-center gap-2 cursor-pointer">
@@ -137,7 +137,7 @@ const Header: React.FC = React.memo(() => {
       </header>
       
       {/* Spacer for fixed header */}
-      <div className="h-[60px]" />
+      <div className="h-header" />
 
       <AuthModal 
         open={authOpen} 

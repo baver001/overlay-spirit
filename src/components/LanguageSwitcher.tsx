@@ -19,21 +19,21 @@ const LanguageSwitcher: React.FC = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white">
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
           <Languages className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white">
-        <DropdownMenuItem onClick={() => changeLanguage('en')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
+      <DropdownMenuContent align="end" className="bg-surface-1 border-border text-foreground">
+        <DropdownMenuItem onClick={() => changeLanguage('en')} className="hover:bg-surface-3 focus:bg-surface-3 cursor-pointer">
           English
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeLanguage('ru')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
+        <DropdownMenuItem onClick={() => changeLanguage('ru')} className="hover:bg-surface-3 focus:bg-surface-3 cursor-pointer">
           Русский
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeLanguage('ja')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
+        <DropdownMenuItem onClick={() => changeLanguage('ja')} className="hover:bg-surface-3 focus:bg-surface-3 cursor-pointer">
           日本語
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeLanguage('pt')} className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer">
+        <DropdownMenuItem onClick={() => changeLanguage('pt')} className="hover:bg-surface-3 focus:bg-surface-3 cursor-pointer">
           Português
         </DropdownMenuItem>
       </DropdownMenuContent>

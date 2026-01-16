@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    /* === Semantic Colors === */
     --background: 220 18% 6%;
     --foreground: 0 0% 98%;
     --card: 220 18% 8%;
@@ -23,20 +24,77 @@
     --border: 220 14% 18%;
     --input: 220 14% 18%;
     --ring: 206 52% 60%;
+    
+    /* === Surface Layers (unified backgrounds) === */
+    --surface-0: 215 27.9% 6%;      /* Deepest background */
+    --surface-1: 215 27.9% 8%;      /* Cards, panels */
+    --surface-2: 215 27.9% 12%;     /* Elevated elements */
+    --surface-3: 215 27.9% 16%;     /* Hover states */
+    --surface-4: 215 27.9% 20%;     /* Active states */
+    
+    /* === Border opacity variants === */
+    --border-subtle: 220 14% 18% / 0.4;
+    --border-default: 220 14% 18% / 0.6;
+    --border-strong: 220 14% 18%;
+    
+    /* === Radii — unified optical scale === */
     --radius: 0.75rem;
-    /* Оптические радиусы — гармоничная прогрессия */
-    --radius-xs: 0.375rem;
-    --radius-sm: 0.5rem;
-    --radius-md: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.25rem;
-    /* Оптические отступы — кратные 4px для ритма */
-    --space-1: 0.25rem;
-    --space-2: 0.5rem;
-    --space-3: 0.75rem;
-    --space-4: 1rem;
-    --space-5: 1.25rem;
-    --space-6: 1.5rem;
+    --radius-xs: 0.25rem;   /* 4px - tiny elements */
+    --radius-sm: 0.375rem;  /* 6px - buttons, inputs */
+    --radius-md: 0.625rem;  /* 10px - cards, panels */
+    --radius-lg: 1rem;      /* 16px - modals, large cards */
+    --radius-xl: 1.5rem;    /* 24px - hero sections */
+    --radius-full: 9999px;  /* Pills, avatars */
+    
+    /* === Shadows — consistent depth === */
+    --shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.2);
+    --shadow-sm: 0 2px 4px hsl(0 0% 0% / 0.25);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.4);
+    --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.5);
+    --shadow-glow-brand: 0 0 40px hsl(330 80% 60% / 0.2);
+    --shadow-glow-primary: 0 0 40px hsl(206 52% 60% / 0.2);
+    
+    /* === Backdrop blur === */
+    --blur-sm: 8px;
+    --blur-md: 12px;
+    --blur-lg: 16px;
+    --blur-xl: 24px;
+    
+    /* === Layout dimensions === */
+    --header-height: 60px;
+    --sidebar-width: 320px;
+    --mobile-nav-height: 64px;
+    
+    /* === Z-index scale === */
+    --z-base: 0;
+    --z-dropdown: 50;
+    --z-sticky: 100;
+    --z-fixed: 150;
+    --z-overlay: 200;
+    --z-modal: 300;
+    --z-popover: 400;
+    --z-toast: 500;
+    
+    /* === Spacing — 4px rhythm === */
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.25rem;   /* 20px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
+    --space-10: 2.5rem;   /* 40px */
+    --space-12: 3rem;     /* 48px */
+    
+    /* === Transitions === */
+    --transition-fast: 150ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms ease;
+    
+    /* === Dot pattern background === */
+    --dot-size: 20px;
+    --dot-color: rgba(255, 255, 255, 0.15);
   }
 
   .light {
@@ -62,7 +120,7 @@
   }
 }
 
-/* Утилитарные классы для оптических отступов */
+/* Утилитарные классы для design system */
 @layer utilities {
   .p-optical {
     padding: var(--radius-md);
@@ -70,6 +128,58 @@
   .gap-optical {
     gap: var(--space-2);
   }
+  
+  /* Surface backgrounds */
+  .bg-surface-0 {
+    background-color: hsl(var(--surface-0));
+  }
+  .bg-surface-1 {
+    background-color: hsl(var(--surface-1));
+  }
+  .bg-surface-2 {
+    background-color: hsl(var(--surface-2));
+  }
+  .bg-surface-3 {
+    background-color: hsl(var(--surface-3));
+  }
+  
+  /* Dot pattern background */
+  .bg-dots {
+    background-image: radial-gradient(circle at 1px 1px, var(--dot-color) 1px, transparent 0);
+    background-size: var(--dot-size) var(--dot-size);
+  }
+  
+  /* Unified shadows */
+  .shadow-unified-xs { box-shadow: var(--shadow-xs); }
+  .shadow-unified-sm { box-shadow: var(--shadow-sm); }
+  .shadow-unified-md { box-shadow: var(--shadow-md); }
+  .shadow-unified-lg { box-shadow: var(--shadow-lg); }
+  .shadow-unified-xl { box-shadow: var(--shadow-xl); }
+  .shadow-glow-brand { box-shadow: var(--shadow-glow-brand); }
+  .shadow-glow-primary { box-shadow: var(--shadow-glow-primary); }
+  
+  /* Unified blur */
+  .backdrop-blur-unified-sm { backdrop-filter: blur(var(--blur-sm)); }
+  .backdrop-blur-unified-md { backdrop-filter: blur(var(--blur-md)); }
+  .backdrop-blur-unified-lg { backdrop-filter: blur(var(--blur-lg)); }
+  .backdrop-blur-unified-xl { backdrop-filter: blur(var(--blur-xl)); }
+  
+  /* Border variants */
+  .border-subtle {
+    border-color: hsl(var(--border-subtle));
+  }
+  .border-default {
+    border-color: hsl(var(--border-default));
+  }
+  
+  /* Z-index helpers */
+  .z-dropdown { z-index: var(--z-dropdown); }
+  .z-sticky { z-index: var(--z-sticky); }
+  .z-fixed { z-index: var(--z-fixed); }
+  .z-overlay { z-index: var(--z-overlay); }
+  .z-modal { z-index: var(--z-modal); }
+  .z-popover { z-index: var(--z-popover); }
+  .z-toast { z-index: var(--z-toast); }
 }
 
 @layer base {

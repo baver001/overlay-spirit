@@ -28,6 +28,14 @@ export default {
           pink: "#F499BD",
           purple: "#9663A1",
         },
+        // Surface colors for unified backgrounds
+        surface: {
+          0: "hsl(var(--surface-0))",
+          1: "hsl(var(--surface-1))",
+          2: "hsl(var(--surface-2))",
+          3: "hsl(var(--surface-3))",
+          4: "hsl(var(--surface-4))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -63,14 +71,31 @@ export default {
         },
       },
       borderRadius: {
-        lg: "var(--radius-lg)",
-        md: "var(--radius-md)",
-        sm: "var(--radius-sm)",
         xs: "var(--radius-xs)",
+        sm: "var(--radius-sm)",
+        md: "var(--radius-md)",
+        lg: "var(--radius-lg)",
         xl: "var(--radius-xl)",
       },
       spacing: {
         'optical': 'var(--radius-md)',
+        'header': 'var(--header-height)',
+        'sidebar': 'var(--sidebar-width)',
+        'mobile-nav': 'var(--mobile-nav-height)',
+      },
+      zIndex: {
+        'dropdown': 'var(--z-dropdown)',
+        'sticky': 'var(--z-sticky)',
+        'fixed': 'var(--z-fixed)',
+        'overlay': 'var(--z-overlay)',
+        'modal': 'var(--z-modal)',
+        'popover': 'var(--z-popover)',
+        'toast': 'var(--z-toast)',
+      },
+      transitionDuration: {
+        'fast': '150ms',
+        'base': '200ms',
+        'slow': '300ms',
       },
       keyframes: {
         "accordion-down": {

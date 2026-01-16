@@ -7,18 +7,20 @@ import { AdminTopbar } from "./AdminTopbar";
 import { AdminGuard } from "../modules/AdminGuard";
 import { AdminSessionProvider } from "../providers/AdminSessionProvider";
 import Footer from "@/components/Footer";
+import { useTranslation } from "react-i18next";
 
 const navItems = [
-  { to: "/admin/dashboard", icon: "LayoutDashboard", label: "Дэшборд" },
-  { to: "/admin/categories", icon: "FolderKanban", label: "Категории" },
-  { to: "/admin/sets", icon: "Boxes", label: "Наборы" },
-  { to: "/admin/users", icon: "Users", label: "Пользователи" },
-  { to: "/admin/purchases", icon: "CreditCard", label: "Покупки" },
-  { to: "/admin/settings", icon: "Settings", label: "Настройки" },
+  { to: "/admin/dashboard", icon: "LayoutDashboard", labelKey: "admin.dashboard" },
+  { to: "/admin/categories", icon: "FolderKanban", labelKey: "admin.categories" },
+  { to: "/admin/sets", icon: "Boxes", labelKey: "admin.sets" },
+  { to: "/admin/users", icon: "Users", labelKey: "admin.users" },
+  { to: "/admin/purchases", icon: "CreditCard", labelKey: "admin.purchases" },
+  { to: "/admin/settings", icon: "Settings", labelKey: "admin.settings" },
 ] as const;
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
+  const { t } = useTranslation();
 
   return (
     <AdminSessionProvider>
@@ -26,16 +28,16 @@ export const AdminLayout: React.FC = () => {
         <div className="min-h-screen bg-muted/20 flex flex-col">
           <AdminTopbar />
           <div className="flex flex-1">
-            <aside className="hidden md:flex md:w-64 lg:w-72 xl:w-80 flex-col border-r border-border bg-background/95 backdrop-blur-lg">
+            <aside className="hidden md:flex md:w-64 lg:w-72 xl:w-80 flex-col border-r border-border bg-background/95 backdrop-blur-unified-lg">
               <Link 
                 to="/" 
                 className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors border-b border-border"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Вернуться в редактор
+                {t('admin.back_to_editor')}
               </Link>
               <div className="p-4">
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Administration</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t('admin.title')}</h2>
               </div>
               <nav className="flex-1 space-y-1 px-3 pb-4">
                 {navItems.map((item) => {
@@ -54,7 +56,7 @@ export const AdminLayout: React.FC = () => {
                       }
                     >
                       {Icon ? <Icon className="h-4 w-4" /> : null}
-                      {item.label}
+                      {t(item.labelKey)}
                     </NavLink>
                   );
                 })}
